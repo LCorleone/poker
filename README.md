@@ -2,6 +2,8 @@
 
 > React 19 + TypeScript + Vite 构建的德州扑克训练器，集成 LLM AI 对手与 GTO 策略指导
 
+**[English](./README_EN.md)** | 中文
+
 [![React 19](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite 6](https://img.shields.io/badge/Vite-6-purple?logo=vite)](https://vitejs.dev/)

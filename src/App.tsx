@@ -44,6 +44,22 @@ function App() {
   const [showReplay, setShowReplay] = React.useState(false);
   const [showTutorial, setShowTutorial] = React.useState(false);
 
+  if (showTutorial) {
+    return (
+      <div className="app">
+        <Tutorial onComplete={() => setShowTutorial(false)} />
+      </div>
+    );
+  }
+
+  if (showQuiz) {
+    return (
+      <div className="app">
+        <QuizMode onExit={() => setShowQuiz(false)} />
+      </div>
+    );
+  }
+
   // Welcome screen
   if (gameState.phase === 'waiting' && !isProcessing) {
     return (
@@ -66,22 +82,6 @@ function App() {
             📖 新手教程
           </button>
         </div>
-      </div>
-    );
-  }
-
-  if (showTutorial) {
-    return (
-      <div className="app">
-        <Tutorial onComplete={() => setShowTutorial(false)} />
-      </div>
-    );
-  }
-
-  if (showQuiz) {
-    return (
-      <div className="app">
-        <QuizMode onExit={() => setShowQuiz(false)} />
       </div>
     );
   }

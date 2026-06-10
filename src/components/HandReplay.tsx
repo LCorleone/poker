@@ -82,8 +82,8 @@ const HandReplay: React.FC<HandReplayProps> = ({
         <div className="replay-players">
           <span className="replay-section-label">参与者</span>
           {players.filter(p => p.holeCards.length > 0).map(p => {
-            const isWinner = winnerIds.has(p.id);
             const winnerData = handResult?.winners.find(w => w.playerId === p.id);
+            const isWinner = winnerIds.has(p.id) && (winnerData ? winnerData.amount > p.totalBetThisHand : true);
             return (
               <div key={p.id} className={`replay-player ${isWinner ? 'replay-winner' : ''} ${p.isFolded ? 'replay-folded' : ''}`}>
                 <div className="replay-player-info">
@@ -99,9 +99,9 @@ const HandReplay: React.FC<HandReplayProps> = ({
                     <span className="replay-folded-text">弃牌</span>
                   )}
                 </div>
-                {isWinner && winnerData && (
+                {winnerData && winnerData.amount > 0 && (
                   <span className="replay-win-amount">
-                    +{winnerData.amount} ({winnerData.hand.name})
+                    {winnerData.amount > p.totalBetThisHand ? '+' : '退回'}{winnerData.amount} ({winnerData.hand.name})
                   </span>
                 )}
               </div>

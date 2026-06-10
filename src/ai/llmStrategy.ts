@@ -142,7 +142,7 @@ export async function makeLLMDecision(
   const fullStack = player.currentBet + player.chips;
 
   // Smart max: cap raise to discourage reckless all-in, but still allow it
-  const potSizedMax = state.currentBet + state.pot * 2;
+  const potSizedMax = state.currentBet + state.pot;
   const stackProtectedMax = player.currentBet + player.chips * 0.6;
   const effectiveMaxRaise = Math.min(potSizedMax, stackProtectedMax, fullStack);
   const maxRaise = fullStack;
@@ -154,15 +154,25 @@ export async function makeLLMDecision(
   const opponents = state.players
     .filter(p => p.id !== player.id && !p.isEliminated)
     .map(p => {
-      let status = p.isFolded ? '已弃牌' : p.isAllIn ? '全下' : `筹码${p.chips}, 本轮下注${p.currentBet}`;
+      let status = p.isFolded ? '已弃牌' : p.isAllIn ? '全下(已无筹码，加注无意义)' : `筹码${p.chips}, 本轮下注${p.currentBet}`;
       return `${p.name}(${status})`;
     })
     .join('; ');
+
+  const allOpponentsAllIn = state.players
+    .filter(p => p.id !== player.id && !p.isEliminated && !p.isFolded)
+    .every(p => p.isAllIn);
 
   // Pot odds
   const potOdds = state.pot > 0 && toCall > 0
     ? `${(toCall / (state.pot + toCall) * 100).toFixed(1)}%`
     : 'N/A';
+
+  const sizingGuide = `下注尺寸参考:
+- 高牌/弱对: 过牌或小注(底池的30-50%)
+- 两对/三条: 中等下注(底池的50-75%)
+- 同花/葫芦/四条+: 可以大额下注(底池的75-100%)
+- 没有成牌时，只在有明确诈唬计划时才加注`;
 
   const systemPrompt = proInfo
     ? `你是真实的德州扑克职业选手"${proInfo.name}"(${proInfo.title})。
@@ -175,6 +185,8 @@ ${proInfo.personality}
 
 你必须完全按照${proInfo.name}的真实风格来打牌。用中文思考。
 
+重要: 即使是最激进的职业选手，大部分手牌也会选择过牌或跟注。加注是例外而非常态。
+
 你必须返回严格的JSON格式(不要用markdown代码块):
 {"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程(用${proInfo.name}的口吻)"}
 
@@ -182,18 +194,24 @@ ${proInfo.personality}
 - action只能是: fold, check, call, raise
 - raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
 - 如果可以check，不要fold
-- 完全按照你自己的风格和判断来打牌，不要有任何保留`
+- 不要每次都加注到最大值，大多数加注应该适中
+
+${sizingGuide}`
     : `你是一个德州扑克AI玩家。你的名字是"${player.name}"。
+
+重要: 即使是最激进的玩家，大部分手牌也会选择过牌或跟注。加注是例外而非常态。
 
 你必须返回严格的JSON格式(不要用markdown代码块):
 {"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程"}
 
-规则:
+格式规则:
 - action只能是: fold, check, call, raise
 - raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
 - 如果可以check，不要fold
-- 不要频繁all-in(全下)，all-in是最后的手段，除非你有充分的理由
-- 按照你的判断自由发挥，像真实牌手一样打牌`;
+- 不要频繁all-in(全下)，all-in是最后的手段
+- 不要每次都加注到最大值，大多数加注应该适中
+
+${sizingGuide}`;
 
   const userPrompt = `现在轮到你(${player.name})做决定了！
 
@@ -210,6 +228,7 @@ ${state.communityCards.length > 0 ? `公共牌: ${state.communityCards.map(cardS
 底池赔率: ${potOdds}
 对手情况: ${opponents}
 可选操作: ${actions.join(', ')}
+${allOpponentsAllIn ? '\n⚠️ 注意: 所有未弃牌的对手都已全下，你只需要过牌或跟注匹配即可，无需加注（他们无法再响应加注）。' : ''}
 
 历史操作(在你之前发生的):
 ${buildActionSummary(state)}

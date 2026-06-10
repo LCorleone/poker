@@ -4,6 +4,7 @@ import {
   GameAction,
   GamePhase,
   DecisionFeedback,
+  ActionRecord,
 } from '../engine/types';
 import {
   createGameState,
@@ -13,10 +14,12 @@ import {
   getAvailableActions,
   getRaiseRange,
   generateFeedback,
+  getBlindInfo,
   HandResult,
 } from '../engine/game';
 import { makeAIDecision } from '../ai/strategy';
-import { getGTOAdvice, calculatePosition, GTOAdvice, Position } from '../engine/gto';
+import { getGTOAdvice, calculatePosition, getPostFlopAdvice, GTOAdvice, Position, PostFlopAdvice } from '../engine/gto';
+import { useStats } from './useStats';
 
 export interface GameHookState {
   gameState: GameState;
@@ -27,6 +30,7 @@ export interface GameHookState {
   isProcessing: boolean;
   gtoAdvice: GTOAdvice | null;
   humanPosition: Position | null;
+  postFlopAdvice: PostFlopAdvice | null;
 }
 
 export function useGame() {
@@ -39,7 +43,10 @@ export function useGame() {
     isProcessing: false,
     gtoAdvice: null,
     humanPosition: null,
-  }));;
+    postFlopAdvice: null,
+  }));
+
+  const { stats, recordDecision, recordHandResult, resetStats } = useStats();
 
   const processingRef = useRef(false);
   const stateRef = useRef(state);
@@ -47,6 +54,14 @@ export function useGame() {
 
   const finishHand = useCallback((gs: GameState) => {
     const { result, updatedPlayers } = getWinners(gs);
+    const human = updatedPlayers.find(p => p.isHuman);
+    if (human) {
+      const isWinner = result.winners.some(w => w.playerId === human.id);
+      const chipDelta = isWinner
+        ? result.winners.find(w => w.playerId === human.id)!.amount - human.totalBetThisHand
+        : -human.totalBetThisHand;
+      recordHandResult(isWinner, chipDelta);
+    }
     const finalState = { ...gs, players: updatedPlayers };
     setState(prev => ({
       ...prev,
@@ -82,8 +97,12 @@ export function useGame() {
       }
 
       // AI turn
-      const action = makeAIDecision(current, current.currentPlayerIndex);
-      const next = performAction(current, action);
+      const decision = makeAIDecision(current, current.currentPlayerIndex);
+      // Clone and patch the action record with the thought
+      const next = performAction(current, decision.action);
+      if (decision.thought && next.actionHistory.length > 0) {
+        next.actionHistory[next.actionHistory.length - 1].thought = decision.thought;
+      }
 
       // Continue with next player after a delay
       setTimeout(() => process(next), 600);
@@ -119,6 +138,7 @@ export function useGame() {
 
     // Generate feedback for this action (before applying it)
     const fb = generateFeedback(gameState, action, gameState.phase);
+    if (fb) recordDecision(fb.wasCorrect);
 
     const next = performAction(gameState, action);
 
@@ -156,7 +176,7 @@ export function useGame() {
       isProcessing: false,
       gtoAdvice: null,
       humanPosition: null,
-    }));;
+    }));
 
     if (!next.players[next.currentPlayerIndex]?.isHuman) {
       setTimeout(() => processAIActions(next), 600);
@@ -195,15 +215,31 @@ export function useGame() {
   })();
 
   // Compute GTO advice for human during preflop
-  const { gtoAdvice, humanPosition } = useMemo(() => {
-    if (!isHumanTurn || state.gameState.phase !== 'preflop') return { gtoAdvice: null, humanPosition: null };
+  const { gtoAdvice, humanPosition, postFlopAdvice } = useMemo(() => {
+    if (!isHumanTurn) return { gtoAdvice: null, humanPosition: null, postFlopAdvice: null };
     const human = state.gameState.players.find((p: { isHuman: boolean }) => p.isHuman);
-    if (!human || human.holeCards.length !== 2) return { gtoAdvice: null, humanPosition: null };
+    if (!human || human.holeCards.length !== 2) return { gtoAdvice: null, humanPosition: null, postFlopAdvice: null };
 
     const pos = calculatePosition(human.seatIndex, state.gameState.dealerIndex, state.gameState.players);
-    const advice = getGTOAdvice(human.holeCards, pos);
-    return { gtoAdvice: advice, humanPosition: pos };
-  }, [isHumanTurn, state.gameState.phase, state.gameState.dealerIndex, state.gameState.players]);
+
+    let gto = null;
+    let pfAdvice = null;
+
+    if (state.gameState.phase === 'preflop') {
+      gto = getGTOAdvice(human.holeCards, pos);
+    } else if (state.gameState.phase !== 'showdown' && state.gameState.phase !== 'waiting') {
+      pfAdvice = getPostFlopAdvice(
+        human.holeCards,
+        state.gameState.communityCards,
+        pos,
+        state.gameState.pot,
+        state.gameState.currentBet,
+        human.currentBet
+      );
+    }
+
+    return { gtoAdvice: gto, humanPosition: pos, postFlopAdvice: pfAdvice };
+  }, [isHumanTurn, state.gameState.phase, state.gameState.dealerIndex, state.gameState.pot, state.gameState.currentBet, state.gameState.communityCards, humanPlayer?.holeCards]);
 
   return {
     gameState: state.gameState,
@@ -217,6 +253,10 @@ export function useGame() {
     humanWon,
     gtoAdvice,
     humanPosition,
+    postFlopAdvice,
+    stats,
+    resetStats,
+    blindInfo: getBlindInfo(state.gameState),
     startGame,
     playerAction,
     dealNewHand,

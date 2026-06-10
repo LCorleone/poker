@@ -1,5 +1,6 @@
 import React from 'react';
-import { Player } from '../engine/types';
+import { Player, AIPersona } from '../engine/types';
+import { PERSONA_INFO } from '../ai/strategy';
 import { evaluateHand } from '../engine/evaluate';
 import CardComponent from './Card';
 
@@ -13,6 +14,7 @@ interface PlayerSeatProps {
   isHuman: boolean;
   isWinner: boolean;
   handName?: string;
+  lastThought?: string;
 }
 
 const PlayerSeat: React.FC<PlayerSeatProps> = ({
@@ -25,6 +27,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
   isHuman,
   isWinner,
   handName,
+  lastThought,
 }) => {
   if (player.isEliminated) {
     return (
@@ -48,6 +51,11 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         {player.isAllIn && <span className="allin-badge">全下</span>}
       </div>
       <div className="player-chips">筹码: {player.chips}</div>
+      {!isHuman && player.persona && (
+        <div className="persona-label">
+          {PERSONA_INFO[player.persona].label} · {PERSONA_INFO[player.persona].style}
+        </div>
+      )}
       {cards.length > 0 && (
         <div className="player-cards">
           {cards.map((card, i) => (
@@ -64,6 +72,11 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         <div className="player-bet">下注: {player.currentBet}</div>
       )}
       {player.isFolded && <div className="folded-overlay">弃牌</div>}
+      {lastThought && isCurrentTurn && !player.isFolded && (
+        <div className="thought-bubble">
+          💭 {lastThought}
+        </div>
+      )}
       {isWinner && handName && (
         <div className="winner-hand">{handName}</div>
       )}

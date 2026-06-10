@@ -46,6 +46,14 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult }) => {
   })();
   const isShowdown = phase === 'showdown';
 
+  // Extract last thought for each AI player
+  const lastThoughts: Record<number, string> = {};
+  for (const record of gameState.actionHistory) {
+    if (record.thought) {
+      lastThoughts[record.playerId] = record.thought;
+    }
+  }
+
   const winnerIds = new Set(handResult?.winners.map((w: { playerId: number }) => w.playerId) ?? []);
 
   return (
@@ -60,7 +68,7 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult }) => {
         {/* Community cards */}
         <div className="community-cards">
           {communityCards.map((card, i) => (
-            <CardComponent key={i} card={card} />
+            <CardComponent key={i} card={card} animate />
           ))}
           {Array.from({ length: 5 - communityCards.length }).map((_, i) => (
             <div key={`empty-${i}`} className="card card-empty" />
@@ -100,6 +108,7 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult }) => {
                 isHuman={player.isHuman}
                 isWinner={isWinner}
                 handName={handName}
+                lastThought={lastThoughts[player.id]}
               />
             </div>
           );

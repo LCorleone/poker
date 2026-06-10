@@ -7,6 +7,7 @@ interface ActionBarProps {
   currentBet: number;
   playerChips: number;
   playerCurrentBet: number;
+  pot: number;
   onAction: (action: GameAction) => void;
   disabled: boolean;
 }
@@ -17,10 +18,12 @@ const ActionBar: React.FC<ActionBarProps> = ({
   currentBet,
   playerChips,
   playerCurrentBet,
+  pot,
   onAction,
   disabled,
 }) => {
   const [raiseAmount, setRaiseAmount] = useState(raiseRange.min);
+  const [showPresets, setShowPresets] = useState(false);
 
   // Update raise amount when range changes
   React.useEffect(() => {
@@ -34,6 +37,15 @@ const ActionBar: React.FC<ActionBarProps> = ({
   const handleRaise = () => {
     onAction({ type: 'raise', amount: raiseAmount });
   };
+
+  const handlePresetRaise = (amount: number) => {
+    const clamped = Math.min(Math.max(amount, raiseRange.min), raiseRange.max);
+    setRaiseAmount(clamped);
+    setShowPresets(false);
+  };
+
+  // Calculate preset amounts (these are total bet amounts, not additional)
+  const hasRaise = availableActions.some(a => a.type === 'raise');
 
   return (
     <div className="action-bar">
@@ -55,8 +67,47 @@ const ActionBar: React.FC<ActionBarProps> = ({
         </button>
       )}
 
-      {availableActions.some(a => a.type === 'raise') && (
+      {hasRaise && (
         <div className="raise-control">
+          <button
+            className={`btn btn-presets-toggle ${showPresets ? 'active' : ''}`}
+            onClick={() => setShowPresets(!showPresets)}
+          >
+            📐 快捷
+          </button>
+
+          {showPresets && (
+            <div className="raise-presets">
+              <button
+                className="btn-preset"
+                onClick={() => handlePresetRaise(Math.floor(currentBet + pot * 0.5))}
+                disabled={Math.floor(currentBet + pot * 0.5) > raiseRange.max}
+              >
+                ½底池 {Math.floor(currentBet + pot * 0.5)}
+              </button>
+              <button
+                className="btn-preset"
+                onClick={() => handlePresetRaise(Math.floor(currentBet + pot * 0.75))}
+                disabled={Math.floor(currentBet + pot * 0.75) > raiseRange.max}
+              >
+                ¾底池 {Math.floor(currentBet + pot * 0.75)}
+              </button>
+              <button
+                className="btn-preset"
+                onClick={() => handlePresetRaise(currentBet + pot)}
+                disabled={currentBet + pot > raiseRange.max}
+              >
+                底池 {currentBet + pot}
+              </button>
+              <button
+                className="btn-preset btn-preset-allin"
+                onClick={() => handlePresetRaise(raiseRange.max)}
+              >
+                全下 {raiseRange.max}
+              </button>
+            </div>
+          )}
+
           <input
             type="range"
             min={raiseRange.min}

@@ -2,6 +2,8 @@
 
 export type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades';
 
+export type AIPersona = 'tag' | 'lag' | 'calling-station' | 'nit' | 'maniac';
+
 // 2–14, where 14 = Ace
 export type Rank = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
 
@@ -45,6 +47,7 @@ export interface Player {
   isHuman: boolean;
   isEliminated: boolean;
   seatIndex: number;
+  persona?: AIPersona;
 }
 
 // ===================== Game State =====================
@@ -60,6 +63,7 @@ export interface ActionRecord {
   playerId: number;
   action: GameAction;
   phase: GamePhase;
+  thought?: string;
 }
 
 export interface GameState {
@@ -80,6 +84,9 @@ export interface GameState {
   actedThisRound: Set<number>;
   // track last aggressor index for determining action order on new street
   lastAggressorIndex: number;
+  handNumber: number;
+  blindLevel: number;
+  handsPerLevel: number;
 }
 
 // ===================== Feedback =====================

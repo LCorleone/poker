@@ -201,6 +201,36 @@ function describeHoleCards(cards: Card[]): string {
   return suited ? '同花杂牌' : '杂牌';
 }
 
+// Count outs: cards that improve hand to likely winner
+export function countOuts(holeCards: Card[], communityCards: Card[]): number {
+  if (holeCards.length !== 2 || communityCards.length < 3) return 0;
+
+  const allCards = [...holeCards, ...communityCards];
+  const currentHand = evaluateHand(allCards);
+
+  // If already have a strong hand (two pair+), fewer meaningful outs needed
+  if (currentHand.rank >= HandRank.TWO_PAIR) return 0;
+
+  const known = new Set(allCards.map(c => `${c.suit}-${c.rank}`));
+  let outs = 0;
+
+  for (const suit of ['hearts', 'diamonds', 'clubs', 'spades'] as const) {
+    for (let r = 2; r <= 14; r++) {
+      if (known.has(`${suit}-${r}`)) continue;
+
+      // Test if this card improves our hand
+      const testCards = [...allCards, { suit, rank: r as Card['rank'] }];
+      const newHand = evaluateHand(testCards);
+
+      if (newHand.rank > currentHand.rank) {
+        outs++;
+      }
+    }
+  }
+
+  return outs;
+}
+
 // Simple equity estimation via Monte Carlo (lightweight)
 export function estimateEquity(
   holeCards: Card[],
@@ -245,7 +275,7 @@ export function estimateEquity(
     for (let opp = 0; opp < numOpponents; opp++) {
       const oppCards = [shuffled[idx++], shuffled[idx++]];
       const oppHand = evaluateHand([...oppCards, ...simCommunity]);
-      if (compareHands(oppHand, myHand) >= 0) {
+      if (compareHands(oppHand, myHand) > 0) {
         iWin = false;
         break;
       }

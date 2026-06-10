@@ -6,6 +6,7 @@ import {
   Card,
   EvaluatedHand,
   DecisionFeedback,
+  AIPersona,
 } from './types';
 import { createDeck, shuffleDeck, dealCards } from './deck';
 import { evaluateHand, compareHands, getHandStrength, estimateEquity } from './evaluate';
@@ -15,7 +16,24 @@ const STARTING_CHIPS = 1000;
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 
-function makePlayer(id: number, name: string, isHuman: boolean, seatIndex: number): Player {
+const BLIND_SCHEDULE = [
+  { small: 10, big: 20 },
+  { small: 15, big: 30 },
+  { small: 25, big: 50 },
+  { small: 50, big: 100 },
+  { small: 75, big: 150 },
+  { small: 100, big: 200 },
+  { small: 150, big: 300 },
+  { small: 200, big: 400 },
+  { small: 300, big: 600 },
+  { small: 500, big: 1000 },
+];
+
+const HANDS_PER_LEVEL = 10;
+
+const AI_PERSONAS: AIPersona[] = ['tag', 'lag', 'calling-station', 'nit', 'maniac'];
+
+function makePlayer(id: number, name: string, isHuman: boolean, seatIndex: number, persona?: AIPersona): Player {
   return {
     id,
     name,
@@ -28,12 +46,13 @@ function makePlayer(id: number, name: string, isHuman: boolean, seatIndex: numbe
     isHuman,
     isEliminated: false,
     seatIndex,
+    persona,
   };
 }
 
 export function createGameState(): GameState {
   const players = PLAYER_NAMES.map((name, i) =>
-    makePlayer(i, name, i === 0, i)
+    makePlayer(i, name, i === 0, i, i === 0 ? undefined : AI_PERSONAS[i - 1])
   );
 
   return {
@@ -52,6 +71,9 @@ export function createGameState(): GameState {
     actionHistory: [],
     actedThisRound: new Set(),
     lastAggressorIndex: -1,
+    handNumber: 0,
+    blindLevel: 0,
+    handsPerLevel: HANDS_PER_LEVEL,
   };
 }
 
@@ -81,19 +103,6 @@ function findNextCanAct(state: GameState, fromIndex: number): number {
     }
   }
   return -1; // no one can act
-}
-
-export function isHandOver(state: GameState): boolean {
-  const active = activePlayers(state);
-  if (active.length <= 1) return true;
-  // Check if only all-in + maybe one remaining
-  const canActPlayers = state.players.filter(p => canAct(p));
-  if (canActPlayers.length <= 1 && state.actedThisRound.size > 0) {
-    // Everyone has either folded, gone all-in, or only one can still act and has matched
-    // Actually check if betting round is complete
-    if (isBettingRoundComplete(state)) return true;
-  }
-  return false;
 }
 
 function isBettingRoundComplete(state: GameState): boolean {
@@ -126,6 +135,13 @@ export function startNewHand(state: GameState): GameState {
   s.actedThisRound = new Set();
   s.lastAggressorIndex = -1;
 
+  // Advance blind level
+  s.handNumber = state.handNumber + 1;
+  const newLevel = Math.min(Math.floor(s.handNumber / s.handsPerLevel), BLIND_SCHEDULE.length - 1);
+  s.blindLevel = newLevel;
+  s.smallBlind = BLIND_SCHEDULE[newLevel].small;
+  s.bigBlind = BLIND_SCHEDULE[newLevel].big;
+
   // Move dealer to next non-eliminated player
   const n = s.players.length;
   let nextDealer = s.dealerIndex;
@@ -146,9 +162,18 @@ export function startNewHand(state: GameState): GameState {
   // Shuffle & deal
   s.deck = shuffleDeck(createDeck());
 
-  // Post blinds
-  const sbIndex = findNextCanAct(s, s.dealerIndex);
-  const bbIndex = findNextCanAct(s, sbIndex);
+  // Count active (non-eliminated) players for heads-up rule
+  const activeCount = s.players.filter(p => !p.isEliminated).length;
+  let sbIndex: number;
+  let bbIndex: number;
+  if (activeCount === 2) {
+    // Heads-up: dealer is SB
+    sbIndex = s.dealerIndex;
+    bbIndex = findNextCanAct(s, s.dealerIndex);
+  } else {
+    sbIndex = findNextCanAct(s, s.dealerIndex);
+    bbIndex = findNextCanAct(s, sbIndex);
+  }
 
   const sbPlayer = s.players[sbIndex];
   const bbPlayer = s.players[bbIndex];
@@ -180,9 +205,6 @@ export function startNewHand(state: GameState): GameState {
 
   // First to act preflop: left of big blind
   s.currentPlayerIndex = findNextCanAct(s, bbIndex);
-
-  // If there are only 2 players (heads up), dealer is SB and acts first preflop
-  // but for simplicity with 5 players this shouldn't be an issue
 
   return s;
 }
@@ -218,7 +240,17 @@ export function performAction(state: GameState, action: GameAction): GameState {
     }
 
     case 'raise': {
-      const raiseTotal = action.amount!; // total bet amount
+      const raiseTotal = action.amount ?? 0;
+      if (raiseTotal <= player.currentBet || raiseTotal > player.currentBet + player.chips) {
+        // Invalid raise — fallback to call or check
+        const toCall = Math.min(s.currentBet - player.currentBet, player.chips);
+        player.chips -= toCall;
+        player.currentBet += toCall;
+        player.totalBetThisHand += toCall;
+        s.pot += toCall;
+        if (player.chips === 0) player.isAllIn = true;
+        break;
+      }
       const toAdd = raiseTotal - player.currentBet;
       const actualAdd = Math.min(toAdd, player.chips);
       player.chips -= actualAdd;
@@ -358,37 +390,69 @@ export function getWinners(state: GameState): { result: HandResult; updatedPlaye
     };
   }
 
-  // Evaluate all active hands
-  const evaluations = active.map(p => ({
-    player: p,
-    hand: evaluateHand([...p.holeCards, ...state.communityCards]),
-  }));
+  // Side pot calculation
+  // 1. Collect all-in amounts from active players
+  const uniqueBets = [...new Set(active.map(p => p.totalBetThisHand).sort((a, b) => a - b))];
 
-  // Sort descending
-  evaluations.sort((a, b) => compareHands(b.hand, a.hand));
+  interface PotLevel {
+    amount: number;  // total pot at this level
+    eligible: Player[];  // players eligible for this pot
+  }
+  const pots: PotLevel[] = [];
 
-  // Find winners (could be ties)
-  const best = evaluations[0].hand;
-  const winners = evaluations.filter(e => compareHands(e.hand, best) === 0);
+  let prevBet = 0;
+  for (const betLevel of uniqueBets) {
+    let potAtThisLevel = 0;
+    for (const p of updatedPlayers) {
+      if (p.isEliminated && !p.totalBetThisHand) continue;
+      const contrib = Math.min(p.totalBetThisHand, betLevel) - Math.min(p.totalBetThisHand, prevBet);
+      potAtThisLevel += contrib;
+    }
+    if (potAtThisLevel > 0) {
+      const eligible = active.filter(p => p.totalBetThisHand >= betLevel);
+      pots.push({ amount: potAtThisLevel, eligible });
+    }
+    prevBet = betLevel;
+  }
 
-  const share = Math.floor(state.pot / winners.length);
-  const remainder = state.pot - share * winners.length;
+  const allWinners: HandResult['winners'] = [];
 
-  const result: HandResult['winners'] = winners.map((w, i) => ({
-    playerId: w.player.id,
-    amount: share + (i === 0 ? remainder : 0),
-    hand: w.hand,
-  }));
+  for (const pot of pots) {
+    const evaluations = pot.eligible.map(p => ({
+      player: p,
+      hand: evaluateHand([...p.holeCards, ...state.communityCards]),
+    }));
+    evaluations.sort((a, b) => compareHands(b.hand, a.hand));
 
-  // Distribute chips on cloned players
-  for (const r of result) {
+    const best = evaluations[0].hand;
+    const winners = evaluations.filter(e => compareHands(e.hand, best) === 0);
+
+    const share = Math.floor(pot.amount / winners.length);
+    const remainder = pot.amount - share * winners.length;
+
+    for (let i = 0; i < winners.length; i++) {
+      const existing = allWinners.find(w => w.playerId === winners[i].player.id);
+      const amount = share + (i === 0 ? remainder : 0);
+      if (existing) {
+        existing.amount += amount;
+      } else {
+        allWinners.push({
+          playerId: winners[i].player.id,
+          amount,
+          hand: winners[i].hand,
+        });
+      }
+    }
+  }
+
+  // Distribute chips
+  for (const r of allWinners) {
     const p = updatedPlayers.find(pl => pl.id === r.playerId)!;
     p.chips += r.amount;
   }
 
   const eliminated = checkEliminationsOn(updatedPlayers);
-
-  return { result: { winners: result, eliminatedPlayerIds: eliminated }, updatedPlayers };
+  return { result: { winners: allWinners, eliminatedPlayerIds: eliminated }, updatedPlayers };
 }
 
 function checkEliminationsOn(players: Player[]): number[] {
@@ -431,6 +495,20 @@ export function getRaiseRange(state: GameState): { min: number; max: number } {
   const min = state.currentBet + state.minRaise;
   const max = player.currentBet + player.chips; // all-in amount as total bet
   return { min, max };
+}
+
+export function getBlindInfo(state: GameState): { level: number; small: number; big: number; handsUntilNext: number; totalLevels: number } {
+  const level = state.blindLevel;
+  const schedule = BLIND_SCHEDULE[level];
+  const handsInLevel = state.handNumber % state.handsPerLevel;
+  const isMaxLevel = level >= BLIND_SCHEDULE.length - 1;
+  return {
+    level: level + 1,
+    small: schedule.small,
+    big: schedule.big,
+    handsUntilNext: isMaxLevel ? 0 : state.handsPerLevel - handsInLevel,
+    totalLevels: BLIND_SCHEDULE.length,
+  };
 }
 
 // Generate feedback for the human player's last action

@@ -6,6 +6,21 @@ import { PERSONA_INFO } from './strategy';
 let lastError: string | null = null;
 export function getLastError(): string | null { return lastError; }
 
+// Per-player chat history (keyed by player ID, cleared each hand)
+const chatHistories: Map<number, { role: string; content: string }[]> = new Map();
+let lastHandNumber: number = -1;
+
+export function clearChatHistory(): void {
+  chatHistories.clear();
+}
+
+export function resetChatHistoryForHand(handNumber: number): void {
+  if (handNumber !== lastHandNumber) {
+    chatHistories.clear();
+    lastHandNumber = handNumber;
+  }
+}
+
 export interface LLMConfig {
   apiKey: string;
   baseUrl: string;
@@ -83,11 +98,24 @@ export interface AIDecision {
   thought: string;
 }
 
+function buildMessages(playerId: number, systemPrompt: string, userPrompt: string): { role: string; content: string }[] {
+  const history = chatHistories.get(playerId) || [];
+  const messages: { role: string; content: string }[] = [
+    { role: 'system', content: systemPrompt },
+    ...history,
+    { role: 'user', content: userPrompt },
+  ];
+  return messages;
+}
+
 export async function makeLLMDecision(
   state: GameState,
   playerIndex: number,
   config: LLMConfig,
 ): Promise<AIDecision> {
+  // Reset chat history when a new hand starts
+  resetChatHistoryForHand(state.handNumber);
+
   const player = state.players[playerIndex];
   const persona = player.persona || 'tag';
   const personaInfo = PERSONA_INFO[persona as keyof typeof PERSONA_INFO];
@@ -185,10 +213,7 @@ ${buildActionSummary(state)}
       },
       body: JSON.stringify({
         model: config.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
+        messages: buildMessages(player.id, systemPrompt, userPrompt),
         temperature: 0.8,
         max_tokens: 4096,
       }),
@@ -245,6 +270,16 @@ ${buildActionSummary(state)}
     if (action.type === 'raise' && (!action.amount || action.amount < minRaise)) {
       action.amount = minRaise;
     }
+
+    // Save this exchange to chat history
+    const history = chatHistories.get(player.id) || [];
+    history.push({ role: 'user', content: userPrompt });
+    history.push({ role: 'assistant', content: content || JSON.stringify(parsed) });
+    // Keep only last 10 exchanges to avoid token overflow
+    if (history.length > 20) {
+      history.splice(0, history.length - 20);
+    }
+    chatHistories.set(player.id, history);
 
     return {
       action,

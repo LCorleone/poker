@@ -51,11 +51,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         {player.isAllIn && <span className="allin-badge">全下</span>}
       </div>
       <div className="player-chips">筹码: {player.chips}</div>
-      {!isHuman && player.persona && (
-        <div className="persona-label">
-          {PERSONA_INFO[player.persona].label} · {PERSONA_INFO[player.persona].style}
-        </div>
-      )}
+      {/* Persona hidden from user — must learn through play */}
       {cards.length > 0 && (
         <div className="player-cards">
           {cards.map((card, i) => (

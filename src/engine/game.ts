@@ -51,8 +51,14 @@ function makePlayer(id: number, name: string, isHuman: boolean, seatIndex: numbe
 }
 
 export function createGameState(): GameState {
+  // Shuffle AI personas so player can't predict styles
+  const shuffled = structuredClone(AI_PERSONAS);
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   const players = PLAYER_NAMES.map((name, i) =>
-    makePlayer(i, name, i === 0, i, i === 0 ? undefined : AI_PERSONAS[i - 1])
+    makePlayer(i, name, i === 0, i, i === 0 ? undefined : shuffled[i - 1])
   );
 
   return {

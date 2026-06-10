@@ -145,12 +145,14 @@ export async function makeLLMDecision(
 - 如果可以check，不要fold
 - 保持你的"${personaInfo?.label}"风格`;
 
-  const userPrompt = `当前局面:
+  const userPrompt = `现在轮到你(${player.name})做决定了！
+
+当前局面:
 阶段: ${phaseName(state.phase)}
 你的手牌: ${player.holeCards.map(cardStr).join(' ')}
 ${state.communityCards.length > 0 ? `公共牌: ${state.communityCards.map(cardStr).join(' ')}` : '尚无公共牌'}
 你的手牌成牌: ${handDesc}
-底池: ${state.currentBet > 0 ? state.pot : state.pot}
+底池: ${state.pot}
 当前最高下注: ${state.currentBet}
 你已下注: ${player.currentBet}
 需要跟注: ${toCall}
@@ -159,7 +161,7 @@ ${state.communityCards.length > 0 ? `公共牌: ${state.communityCards.map(cardS
 对手情况: ${opponents}
 可选操作: ${actions.join(', ')}
 
-历史操作:
+历史操作(在你之前发生的):
 ${buildActionSummary(state)}
 
 请做出决策，返回JSON:`;

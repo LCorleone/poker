@@ -276,7 +276,8 @@ export function useGame() {
     let pfAdvice = null;
 
     if (state.gameState.phase === 'preflop') {
-      gto = getGTOAdvice(human.holeCards, pos);
+      const hasRaise = state.gameState.currentBet > state.gameState.bigBlind;
+      gto = getGTOAdvice(human.holeCards, pos, hasRaise);
     } else if (state.gameState.phase !== 'showdown' && state.gameState.phase !== 'waiting') {
       pfAdvice = getPostFlopAdvice(
         human.holeCards,

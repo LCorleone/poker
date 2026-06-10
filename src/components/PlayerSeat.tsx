@@ -50,7 +50,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         {player.name}
         {player.isAllIn && <span className="allin-badge">全下</span>}
       </div>
-      <div className="player-chips">筹码: {player.chips}</div>
+      <div className="player-chips"><span className="tip" data-tip="玩家当前剩余的筹码数量">筹码:</span> {player.chips}</div>
       {/* Persona hidden from user — must learn through play */}
       {cards.length > 0 && (
         <div className="player-cards">
@@ -65,14 +65,10 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         </div>
       )}
       {player.currentBet > 0 && (
-        <div className="player-bet">下注: {player.currentBet}</div>
+        <div className="player-bet"><span className="tip" data-tip="本轮下注的金额">下注:</span> {player.currentBet}</div>
       )}
       {player.isFolded && <div className="folded-overlay">弃牌</div>}
-      {lastThought && !player.isFolded && (
-        <div className="thought-bubble">
-          💭 {lastThought}
-        </div>
-      )}
+      {/* Hide AI thought bubble during play — reveals too much info */}
       {isWinner && handName && (
         <div className="winner-hand">{handName}</div>
       )}

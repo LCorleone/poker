@@ -20,6 +20,14 @@ const PHASE_LABELS: Record<string, string> = {
   showdown: '摊牌',
 };
 
+const PHASE_TIPS: Record<string, string> = {
+  preflop: '收到2张底牌后的第一轮下注',
+  flop: '发出3张公共牌后的第二轮下注',
+  turn: '发出第4张公共牌后的第三轮下注',
+  river: '发出第5张公共牌后的最后一轮下注',
+  showdown: '摊牌，比较所有人的牌型',
+};
+
 const ACTION_LABELS: Record<string, (amount?: number) => string> = {
   fold: () => '弃牌',
   check: () => '过牌',
@@ -73,7 +81,7 @@ const HandReplay: React.FC<HandReplayProps> = ({
         {/* Players at showdown */}
         <div className="replay-players">
           <span className="replay-section-label">参与者</span>
-          {players.filter(p => !p.isEliminated && p.holeCards.length > 0).map(p => {
+          {players.filter(p => p.holeCards.length > 0).map(p => {
             const isWinner = winnerIds.has(p.id);
             const winnerData = handResult?.winners.find(w => w.playerId === p.id);
             return (
@@ -82,7 +90,7 @@ const HandReplay: React.FC<HandReplayProps> = ({
                   <span className="replay-player-name">
                     {p.name} {isWinner && '🏆'}
                   </span>
-                  <span className="replay-player-chips">投入: {p.totalBetThisHand}</span>
+                  <span className="replay-player-chips"><span className="tip" data-tip="这手牌中该玩家总共投入的筹码">投入:</span> {p.totalBetThisHand}</span>
                 </div>
                 <div className="replay-cards">
                   {!p.isFolded ? (
@@ -106,7 +114,7 @@ const HandReplay: React.FC<HandReplayProps> = ({
           <span className="replay-section-label">行动时间线</span>
           {phases.map(phase => (
             <div key={phase} className="replay-phase">
-              <div className="replay-phase-header">{PHASE_LABELS[phase] || phase}</div>
+              <div className="replay-phase-header"><span className="tip" data-tip={PHASE_TIPS[phase] || ''}>{PHASE_LABELS[phase] || phase}</span></div>
               {actionHistory
                 .filter(r => r.phase === phase)
                 .map((record, i) => {

@@ -31,22 +31,22 @@ const Feedback: React.FC<FeedbackProps> = ({ feedback, handResult, players, onDi
 
         <div className="feedback-grid">
           <div className="feedback-item">
-            <div className="feedback-label">你的牌型</div>
+            <div className="feedback-label"><span className="tip" data-tip="你当前2张底牌+公共牌组成的最强5张牌型">你的牌型</span></div>
             <div className="feedback-value">{feedback.handStrength}</div>
           </div>
 
           <div className="feedback-item">
-            <div className="feedback-label">底池赔率</div>
+            <div className="feedback-label"><span className="tip" data-tip={"跟注成本占底池的比例\n高于这个比例的赢率才值得跟注"}>底池赔率</span></div>
             <div className="feedback-value">{Math.round(feedback.potOdds * 100)}%</div>
           </div>
 
           <div className="feedback-item">
-            <div className="feedback-label">赢率估算</div>
+            <div className="feedback-label"><span className="tip" data-tip="通过蒙特卡洛模拟200次，估算你当前手牌的胜率">赢率估算</span></div>
             <div className="feedback-value">{Math.round(feedback.equityEstimate * 100)}%</div>
           </div>
 
           <div className="feedback-item">
-            <div className="feedback-label">建议操作</div>
+            <div className="feedback-label"><span className="tip" data-tip="基于你的赢率和底池赔率对比，系统推荐的最优操作">建议操作</span></div>
             <div className="feedback-value">{feedback.recommendation}</div>
           </div>
         </div>

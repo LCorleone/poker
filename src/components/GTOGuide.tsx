@@ -46,13 +46,13 @@ const GTOGuide: React.FC<GTOGuideProps> = ({ advice, position, postFlopAdvice })
     >
       <div className="gto-header">
         <span className="gto-icon">📌</span>
-        <span className="gto-title">GTO建议</span>
+        <span className="gto-title"><span className="tip" data-tip={"GTO (Game Theory Optimal) 是基于博弈论的最优策略\n告诉你这手牌理论上应该怎么打"}>GTO建议</span></span>
         <span className="gto-divider">|</span>
         <span className="gto-position">位置: {POSITION_NAMES[position]}</span>
         {advice && (
           <>
             <span className="gto-divider">|</span>
-            <span className="gto-tier">手牌: {advice.handTier}</span>
+            <span className="gto-tier"><span className="tip" data-tip={"你的起手牌强度等级\n超强牌：AA,KK,QQ,JJ,AKs\n强牌：TT,AQs,AJs,KQs,AKo\n以此类推"}>手牌:</span> {advice.handTier}</span>
           </>
         )}
       </div>
@@ -74,10 +74,10 @@ const GTOGuide: React.FC<GTOGuideProps> = ({ advice, position, postFlopAdvice })
           <div style={{ marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px' }}>
             <div className="gto-action-row">
               <span className="gto-action-label">
-                翻后建议: <strong style={{ color: getActionColor(postFlopAdvice.action) }}>{POSTFLOP_ACTION_LABELS[postFlopAdvice.action] || postFlopAdvice.action}</strong>
+                <span className="tip" data-tip="翻牌后的策略建议，考虑了你的牌型、公共牌面和位置">翻后建议</span>: <strong style={{ color: getActionColor(postFlopAdvice.action) }}>{POSTFLOP_ACTION_LABELS[postFlopAdvice.action] || postFlopAdvice.action}</strong>
               </span>
               <span className="gto-tier" style={{ marginLeft: '8px' }}>
-                牌面: {postFlopAdvice.boardTexture}
+                <span className="tip" data-tip={"公共牌的特征描述\n如：干燥面(少听牌)、湿润面(多听牌可能)"}>牌面:</span> {postFlopAdvice.boardTexture}
               </span>
             </div>
             <div className="gto-explanation">{postFlopAdvice.explanation}</div>

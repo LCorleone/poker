@@ -38,30 +38,30 @@ const PotOddsDisplay: React.FC<PotOddsDisplayProps> = ({
       <div className="pot-odds-title">📊 底池赔率 &amp; 出牌</div>
       <div className="pot-odds-grid">
         <div className="pot-odds-item">
-          <span className="pot-odds-label">底池</span>
+          <span className="pot-odds-label"><span className="tip" data-tip="当前底池的总金额">底池</span></span>
           <span className="pot-odds-value">{pot}</span>
         </div>
         {toCall > 0 && (
           <div className="pot-odds-item">
-            <span className="pot-odds-label">需跟注</span>
+            <span className="pot-odds-label"><span className="tip" data-tip="你需要追加的金额才能继续留在手牌中">需跟注</span></span>
             <span className="pot-odds-value">{toCall}</span>
           </div>
         )}
         {toCall > 0 && (
           <div className="pot-odds-item">
-            <span className="pot-odds-label">底池赔率</span>
+            <span className="pot-odds-label"><span className="tip" data-tip={"底池赔率 = 需跟注金额 ÷ (底池 + 需跟注金额)\n代表你需要多少赢率才能盈亏平衡"}>底池赔率</span></span>
             <span className="pot-odds-value">{Math.round(potOdds * 100)}%</span>
           </div>
         )}
         {communityCards.length >= 3 && (
           <div className="pot-odds-item">
-            <span className="pot-odds-label">出牌数</span>
+            <span className="pot-odds-label"><span className="tip" data-tip={"能让你牌力升级的剩余牌数\n例如：你有4张同花，还剩9张同花牌可以成同花"}>出牌数</span></span>
             <span className="pot-odds-value">{outs}</span>
           </div>
         )}
         {outs > 0 && cardsToCome > 0 && (
           <div className="pot-odds-item">
-            <span className="pot-odds-label">出牌赢率</span>
+            <span className="pot-odds-label"><span className="tip" data-tip={"根据出牌数用4×2规则估算\n翻牌圈：出牌数×4%\n转牌圈：出牌数×2%"}>出牌赢率</span></span>
             <span className="pot-odds-value">~{Math.round(outsEquity * 100)}%</span>
           </div>
         )}

@@ -178,14 +178,11 @@ ${proInfo.personality}
 你必须返回严格的JSON格式(不要用markdown代码块):
 {"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程(用${proInfo.name}的口吻)"}
 
-规则:
+格式规则:
 - action只能是: fold, check, call, raise
 - raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
 - 如果可以check，不要fold
-- 不要频繁all-in(全下)，all-in是最后的手段，除非你有充分的理由
-- 一般加注建议控制在底池的1/2到1倍之间
-- 注意保护你的筹码，合理管理下注尺寸
-- 保持你作为"${proInfo.name}"的真实风格`
+- 完全按照你自己的风格和判断来打牌，不要有任何保留`
     : `你是一个德州扑克AI玩家。你的名字是"${player.name}"。
 
 你必须返回严格的JSON格式(不要用markdown代码块):
@@ -196,8 +193,7 @@ ${proInfo.personality}
 - raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
 - 如果可以check，不要fold
 - 不要频繁all-in(全下)，all-in是最后的手段，除非你有充分的理由
-- 一般加注建议控制在底池的1/2到1倍之间
-- 保持稳健紧凶的打牌风格`;
+- 按照你的判断自由发挥，像真实牌手一样打牌`;
 
   const userPrompt = `现在轮到你(${player.name})做决定了！
 

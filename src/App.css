@@ -107,15 +107,16 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 10px;
+  padding: 20px 10px;
   position: relative;
+  overflow: visible;
 }
 
 .poker-table {
   position: relative;
   width: 90vw;
   max-width: 900px;
-  height: 420px;
+  height: 360px;
   background: radial-gradient(ellipse at center, #1b7a3d 0%, #0a5c36 60%, #084a2c 100%);
   border-radius: 50%;
   border: 12px solid #8B4513;
@@ -194,7 +195,7 @@
 }
 
 .seat-bottom {
-  bottom: -60px;
+  bottom: -45px;
   left: 50%;
   transform: translateX(-50%);
 }
@@ -206,13 +207,13 @@
 }
 
 .seat-top-left {
-  top: -20px;
+  top: -10px;
   left: 15%;
   transform: translateX(-50%);
 }
 
 .seat-top-right {
-  top: -20px;
+  top: -10px;
   right: 15%;
   transform: translateX(50%);
 }
@@ -1208,20 +1209,23 @@
   font-size: 0.7rem;
   padding: 4px 8px;
   border-radius: 8px;
-  white-space: nowrap;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   z-index: 20;
-  animation: thoughtFade 3s ease-out forwards;
   pointer-events: none;
+  animation: thoughtAppear 0.3s ease-out;
 }
 
-@keyframes thoughtFade {
-  0% { opacity: 0; transform: translateX(-50%) translateY(5px); }
-  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  85% { opacity: 1; }
-  100% { opacity: 0; }
+.seat-top-left .thought-bubble,
+.seat-top-right .thought-bubble {
+  bottom: auto;
+  top: 100%;
+}
+
+@keyframes thoughtAppear {
+  from { opacity: 0; transform: translateX(-50%) translateY(5px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ========== Quiz Mode ========== */
@@ -1809,6 +1813,137 @@
   box-shadow: 0 0 15px rgba(25, 118, 210, 0.4);
 }
 
+/* ========== LLM Settings ========== */
+.llm-settings-toggle {
+  position: fixed;
+  top: 8px;
+  right: 52px;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(33, 150, 243, 0.4);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.llm-settings-toggle:hover {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: rgba(33, 150, 243, 0.7);
+}
+
+.llm-settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+
+.llm-settings-panel {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  width: 380px;
+  max-width: 90vw;
+}
+
+.llm-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.llm-settings-header h3 {
+  color: #ffd700;
+  font-size: 1.1rem;
+}
+
+.llm-settings-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.llm-settings-close:hover {
+  color: #fff;
+}
+
+.llm-settings-row {
+  margin-bottom: 12px;
+}
+
+.llm-settings-row label {
+  color: #ccc;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.llm-settings-label {
+  display: block;
+  color: #aaa;
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+}
+
+.llm-settings-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.llm-settings-input:focus {
+  border-color: rgba(33, 150, 243, 0.6);
+}
+
+.llm-settings-note {
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.llm-settings-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-llm-save {
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 6px;
+}
+
+.btn-llm-save:hover {
+  transform: scale(1.05);
+}
+
+.btn-llm-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ccc;
+  padding: 8px 20px;
+  border-radius: 6px;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 768px) {
   .app-header {
@@ -1838,7 +1973,7 @@
 
   .poker-table {
     width: 98vw;
-    height: 300px;
+    height: 260px;
     border-width: 6px;
   }
 
@@ -1882,7 +2017,7 @@
   }
 
   .seat-bottom {
-    bottom: -50px;
+    bottom: -38px;
   }
 
   .seat-left {
@@ -1894,12 +2029,12 @@
   }
 
   .seat-top-left {
-    top: -12px;
+    top: -6px;
     left: 18%;
   }
 
   .seat-top-right {
-    top: -12px;
+    top: -6px;
     right: 18%;
   }
 
@@ -1964,7 +2099,7 @@
   }
 
   /* Stats & reference buttons */
-  .stats-toggle, .handref-toggle, .quiz-toggle-game {
+  .stats-toggle, .handref-toggle, .quiz-toggle-game, .llm-settings-toggle {
     font-size: 1rem;
     padding: 4px 8px;
   }
@@ -2021,7 +2156,7 @@
 
 @media (max-width: 400px) {
   .poker-table {
-    height: 260px;
+    height: 230px;
   }
 
   .card {

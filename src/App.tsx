@@ -15,6 +15,7 @@ import HandRankRef from './components/HandRankRef';
 import QuizMode from './components/QuizMode';
 import HandReplay from './components/HandReplay';
 import Tutorial from './components/Tutorial';
+import LLMSettings from './components/LLMSettings';
 
 function App() {
   const {
@@ -41,6 +42,7 @@ function App() {
   const humanPlayer = gameState.players.find(p => p.isHuman);
 
   const [showQuiz, setShowQuiz] = React.useState(false);
+  const [showLLMSettings, setShowLLMSettings] = React.useState(false);
   const [showReplay, setShowReplay] = React.useState(false);
   const [showTutorial, setShowTutorial] = React.useState(false);
 
@@ -189,11 +191,17 @@ function App() {
           onClose={() => setShowReplay(false)}
         />
       )}
+      {showLLMSettings && (
+        <LLMSettings onClose={() => setShowLLMSettings(false)} />
+      )}
       {!isGameOver && !humanWon && gameState.phase !== 'waiting' && (
         <button className="quiz-toggle-game" onClick={() => setShowQuiz(true)} title="手牌测验">
           🎯
         </button>
       )}
+      <button className="llm-settings-toggle" onClick={() => setShowLLMSettings(true)} title="AI设置">
+        🤖
+      </button>
     </div>
   );
 }

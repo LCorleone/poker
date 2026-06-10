@@ -72,7 +72,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         <div className="player-bet">下注: {player.currentBet}</div>
       )}
       {player.isFolded && <div className="folded-overlay">弃牌</div>}
-      {lastThought && isCurrentTurn && !player.isFolded && (
+      {lastThought && !player.isFolded && (
         <div className="thought-bubble">
           💭 {lastThought}
         </div>

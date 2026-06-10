@@ -19,6 +19,7 @@ import {
   advancePhase,
 } from '../engine/game';
 import { makeAIDecision } from '../ai/strategy';
+import { makeLLMDecision, loadLLMConfig } from '../ai/llmStrategy';
 import { getGTOAdvice, calculatePosition, getPostFlopAdvice, GTOAdvice, Position, PostFlopAdvice } from '../engine/gto';
 import { useStats } from './useStats';
 
@@ -86,11 +87,19 @@ export function useGame() {
     return null; // no one can act
   };
 
+  const getAIDecision = async (state: GameState, playerIndex: number) => {
+    const llmConfig = loadLLMConfig();
+    if (llmConfig.enabled && llmConfig.apiKey) {
+      return makeLLMDecision(state, playerIndex, llmConfig);
+    }
+    return makeAIDecision(state, playerIndex);
+  };
+
   const processAIActions = useCallback((gs: GameState) => {
     if (processingRef.current) return;
     processingRef.current = true;
 
-    const process = (current: GameState) => {
+    const process = async (current: GameState) => {
       // Check if hand is over
       if (current.isHandComplete || current.phase === 'showdown') {
         finishHand(current);
@@ -117,6 +126,11 @@ export function useGame() {
         if (!advanced) {
           // No one can act (all remaining are all-in) — run out the board
           const withBoard = advancePhase(current);
+          // Update UI to show new community cards
+          setState(prev => ({
+            ...prev,
+            gameState: { ...withBoard },
+          }));
           if (withBoard.isHandComplete || withBoard.phase === 'showdown') {
             finishHand(withBoard);
           } else {
@@ -129,13 +143,24 @@ export function useGame() {
         return;
       }
 
-      // AI turn
-      const decision = makeAIDecision(current, current.currentPlayerIndex);
+      // AI turn (async to support LLM)
+      let decision;
+      try {
+        decision = await getAIDecision(current, current.currentPlayerIndex);
+      } catch {
+        decision = { action: { type: 'fold' as const }, thought: '决策出错' };
+      }
       // Clone and patch the action record with the thought
       const next = performAction(current, decision.action);
       if (decision.thought && next.actionHistory.length > 0) {
         next.actionHistory[next.actionHistory.length - 1].thought = decision.thought;
       }
+
+      // Update UI so user can see each AI action
+      setState(prev => ({
+        ...prev,
+        gameState: { ...next },
+      }));
 
       // Continue with next player after a delay
       setTimeout(() => process(next), 600);

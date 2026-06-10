@@ -93,7 +93,7 @@ function canAct(p: Player): boolean {
 }
 
 // Find next player index who can act
-function findNextCanAct(state: GameState, fromIndex: number): number {
+export function findNextCanAct(state: GameState, fromIndex: number): number {
   const n = state.players.length;
   for (let i = 1; i <= n; i++) {
     const idx = (fromIndex + i) % n;

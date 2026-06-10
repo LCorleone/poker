@@ -346,7 +346,8 @@ export function getPostFlopAdvice(
     }
     // Weak hand, can bluff or check
     const pos = posCategory(position);
-    if (pos === 'late' && Math.random() < 0.4) {
+    const cardSeed = holeCards.reduce((s, c) => s + c.rank * 17 + (c.suit.charCodeAt(0) || 0), 0) + communityCards.reduce((s, c) => s + c.rank * 31, 0);
+    if (pos === 'late' && (cardSeed % 10) < 4) {
       return {
         action: 'bet',
         confidence: 'weak',

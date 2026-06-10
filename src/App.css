@@ -1934,6 +1934,17 @@
   line-height: 1.4;
 }
 
+.llm-settings-error {
+  font-size: 0.8rem;
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  word-break: break-all;
+}
+
 .llm-settings-actions {
   display: flex;
   gap: 10px;
@@ -1956,6 +1967,28 @@
   color: #ccc;
   padding: 8px 20px;
   border-radius: 6px;
+}
+
+.btn-llm-test {
+  background: linear-gradient(135deg, #00897b, #004d40);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 6px;
+}
+
+.btn-llm-test:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-llm-test:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.llm-settings-error.success {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.3);
 }
 
 /* ========== Responsive ========== */

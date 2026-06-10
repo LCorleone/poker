@@ -25,10 +25,10 @@ const ActionBar: React.FC<ActionBarProps> = ({
   const [raiseAmount, setRaiseAmount] = useState(raiseRange.min);
   const [showPresets, setShowPresets] = useState(false);
 
-  // Update raise amount when range changes
+  // Reset raise amount when it's a new turn (availableActions changes)
   React.useEffect(() => {
     setRaiseAmount(raiseRange.min);
-  }, [raiseRange.min]);
+  }, [availableActions, raiseRange.min]);
 
   if (availableActions.length === 0 || disabled) return null;
 

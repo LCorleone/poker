@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { LLMConfig, loadLLMConfig, saveLLMConfig } from '../ai/llmStrategy';
+import React, { useState } from 'react';
+import { LLMConfig, loadLLMConfig, saveLLMConfig, getLastError } from '../ai/llmStrategy';
 
 interface LLMSettingsProps {
   onClose: () => void;
@@ -8,11 +8,60 @@ interface LLMSettingsProps {
 const LLMSettings: React.FC<LLMSettingsProps> = ({ onClose }) => {
   const [config, setConfig] = useState<LLMConfig>(loadLLMConfig);
   const [saved, setSaved] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
 
   const handleSave = () => {
     saveLLMConfig(config);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const endpoint = /\/v\d+\/?$/.test(config.baseUrl)
+        ? `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
+        : `${config.baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [{ role: 'user', content: '你好' }],
+          max_tokens: 4096,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errText = await response.text();
+        setTestResult(`❌ HTTP ${response.status}: ${errText.slice(0, 150)}`);
+        return;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || '';
+      setTestResult(`✅ 连接成功! 模型回复: "${content.slice(0, 50)}"`);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        setTestResult('❌ 连接超时 (15秒)，请检查API地址是否正确');
+      } else {
+        setTestResult(`❌ ${err.message || err}`);
+      }
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -71,7 +120,22 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ onClose }) => {
           配置保存在浏览器本地，不会上传到任何服务器。API Key仅用于直接调用LLM接口。
         </div>
 
+        {testResult && (
+          <div className={`llm-settings-error ${testResult.startsWith('✅') ? 'success' : ''}`}>
+            {testResult}
+          </div>
+        )}
+
+        {getLastError() && !testResult && (
+          <div className="llm-settings-error">
+            ⚠️ 上次错误: {getLastError()}
+          </div>
+        )}
+
         <div className="llm-settings-actions">
+          <button className="btn btn-llm-test" onClick={handleTest} disabled={testing || !config.apiKey}>
+            {testing ? '⏳ 测试中...' : '🔌 测试连接'}
+          </button>
           <button className="btn btn-llm-save" onClick={handleSave}>
             {saved ? '✅ 已保存' : '💾 保存'}
           </button>

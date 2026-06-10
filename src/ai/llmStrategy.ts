@@ -2,6 +2,10 @@ import { GameState, GameAction, Card, AIPersona } from '../engine/types';
 import { evaluateHand } from '../engine/evaluate';
 import { PERSONA_INFO } from './strategy';
 
+// Last error for debugging (must be declared before use)
+let lastError: string | null = null;
+export function getLastError(): string | null { return lastError; }
+
 export interface LLMConfig {
   apiKey: string;
   baseUrl: string;
@@ -119,9 +123,6 @@ export async function makeLLMDecision(
     .filter(p => p.id !== player.id && !p.isEliminated)
     .map(p => {
       let status = p.isFolded ? '已弃牌' : p.isAllIn ? '全下' : `筹码${p.chips}, 本轮下注${p.currentBet}`;
-      if (!p.isFolded && !p.isEliminated && p.holeCards.length === 2 && state.phase === 'showdown') {
-        status += `, 手牌: ${p.holeCards.map(cardStr).join(' ')}`;
-      }
       return `${p.name}(${status})`;
     })
     .join('; ');
@@ -164,7 +165,17 @@ ${buildActionSummary(state)}
 请做出决策，返回JSON:`;
 
   try {
-    const response = await fetch(`${config.baseUrl}/v1/chat/completions`, {
+    // Smart URL: if baseUrl already ends with a version path (/v1, /v4, etc), just append /chat/completions
+    // Otherwise append /v1/chat/completions
+    const endpoint = /\/v\d+\/?$/.test(config.baseUrl)
+      ? `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
+      : `${config.baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
+
+    // 60s timeout (reasoning models can be slow)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -177,23 +188,42 @@ ${buildActionSummary(state)}
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.8,
-        max_tokens: 200,
+        max_tokens: 4096,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errText = await response.text();
       console.error('LLM API error:', response.status, errText);
+      lastError = `API ${response.status}: ${errText.slice(0, 100)}`;
       return fallbackDecision(state, playerIndex);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim() || '';
+    const msg = data.choices?.[0]?.message;
+    // glm reasoning models: content may be empty if reasoning used all tokens
+    let content = msg?.content?.trim() || '';
+    if (!content && msg?.reasoning_content) {
+      // Extract JSON from reasoning content as fallback
+      const reasoning = msg.reasoning_content;
+      const jsonInReasoning = reasoning.match(/\{[\s\S]*\}/);
+      if (jsonInReasoning) {
+        content = jsonInReasoning[0];
+      } else {
+        // No JSON found anywhere, construct from reasoning
+        content = '';
+        lastError = `模型回复为空(推理消耗全部token)，reasoning: ${reasoning.slice(0, 80)}`;
+      }
+    }
 
     // Parse JSON from response (handle markdown code blocks)
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('LLM response not JSON:', content);
+      lastError = `Not JSON: ${content.slice(0, 100)}`;
       return fallbackDecision(state, playerIndex);
     }
 
@@ -220,6 +250,7 @@ ${buildActionSummary(state)}
     };
   } catch (err) {
     console.error('LLM decision error:', err);
+    lastError = `${err}`;
     return fallbackDecision(state, playerIndex);
   }
 }

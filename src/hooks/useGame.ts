@@ -17,6 +17,7 @@ import {
   getBlindInfo,
   HandResult,
   advancePhase,
+  findNextCanAct,
 } from '../engine/game';
 import { makeAIDecision } from '../ai/strategy';
 import { makeLLMDecision, loadLLMConfig } from '../ai/llmStrategy';
@@ -74,18 +75,7 @@ export function useGame() {
     processingRef.current = false;
   }, []);
 
-  // Helper: advance to next player who can act (skipping folded/all-in/eliminated)
-  const advanceToNextActor = (gs: GameState): GameState | null => {
-    const n = gs.players.length;
-    for (let i = 1; i <= n; i++) {
-      const idx = (gs.currentPlayerIndex + i) % n;
-      const p = gs.players[idx];
-      if (!p.isEliminated && !p.isFolded && !p.isAllIn) {
-        return { ...gs, currentPlayerIndex: idx };
-      }
-    }
-    return null; // no one can act
-  };
+
 
   const getAIDecision = async (state: GameState, playerIndex: number) => {
     const llmConfig = loadLLMConfig();
@@ -122,7 +112,8 @@ export function useGame() {
       // If human is folded/all-in and it's their turn index, advance the game state
       // to the next player who can act, then continue processing
       if (currentPlayer?.isHuman && (currentPlayer.isFolded || currentPlayer.isAllIn)) {
-        const advanced = advanceToNextActor(current);
+        const nextIdx = findNextCanAct(current, current.currentPlayerIndex);
+        const advanced = nextIdx >= 0 ? { ...current, currentPlayerIndex: nextIdx } : null;
         if (!advanced) {
           // No one can act (all remaining are all-in) — run out the board
           const withBoard = advancePhase(current);
@@ -192,6 +183,7 @@ export function useGame() {
   }, [processAIActions]);
 
   const playerAction = useCallback((action: GameAction) => {
+    if (processingRef.current) return;
     const { gameState } = stateRef.current;
 
     // Generate feedback for this action (before applying it)

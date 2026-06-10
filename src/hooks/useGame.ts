@@ -16,6 +16,7 @@ import {
   generateFeedback,
   getBlindInfo,
   HandResult,
+  advancePhase,
 } from '../engine/game';
 import { makeAIDecision } from '../ai/strategy';
 import { getGTOAdvice, calculatePosition, getPostFlopAdvice, GTOAdvice, Position, PostFlopAdvice } from '../engine/gto';
@@ -72,6 +73,19 @@ export function useGame() {
     processingRef.current = false;
   }, []);
 
+  // Helper: advance to next player who can act (skipping folded/all-in/eliminated)
+  const advanceToNextActor = (gs: GameState): GameState | null => {
+    const n = gs.players.length;
+    for (let i = 1; i <= n; i++) {
+      const idx = (gs.currentPlayerIndex + i) % n;
+      const p = gs.players[idx];
+      if (!p.isEliminated && !p.isFolded && !p.isAllIn) {
+        return { ...gs, currentPlayerIndex: idx };
+      }
+    }
+    return null; // no one can act
+  };
+
   const processAIActions = useCallback((gs: GameState) => {
     if (processingRef.current) return;
     processingRef.current = true;
@@ -85,14 +99,33 @@ export function useGame() {
 
       const currentPlayer = current.players[current.currentPlayerIndex];
 
-      // If it's the human player's turn, stop and wait
-      if (currentPlayer?.isHuman) {
+      // If it's the human player's turn and they can still act, stop and wait
+      if (currentPlayer?.isHuman && !currentPlayer.isFolded && !currentPlayer.isAllIn) {
         processingRef.current = false;
         setState(prev => ({
           ...prev,
           gameState: { ...current },
           isProcessing: false,
         }));
+        return;
+      }
+
+      // If human is folded/all-in and it's their turn index, advance the game state
+      // to the next player who can act, then continue processing
+      if (currentPlayer?.isHuman && (currentPlayer.isFolded || currentPlayer.isAllIn)) {
+        const advanced = advanceToNextActor(current);
+        if (!advanced) {
+          // No one can act (all remaining are all-in) — run out the board
+          const withBoard = advancePhase(current);
+          if (withBoard.isHandComplete || withBoard.phase === 'showdown') {
+            finishHand(withBoard);
+          } else {
+            // Keep advancing until showdown
+            setTimeout(() => process(withBoard), 600);
+          }
+          return;
+        }
+        setTimeout(() => process(advanced), 100);
         return;
       }
 

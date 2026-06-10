@@ -83,7 +83,13 @@ function App() {
           <button className="btn btn-tutorial-start" onClick={() => setShowTutorial(true)}>
             📖 新手教程
           </button>
+          <button className="btn btn-llm-welcome" onClick={() => setShowLLMSettings(true)}>
+            🤖 AI设置
+          </button>
         </div>
+        {showLLMSettings && (
+          <LLMSettings onClose={() => setShowLLMSettings(false)} />
+        )}
       </div>
     );
   }

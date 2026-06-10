@@ -13,8 +13,8 @@ const LLM_CONFIG_KEY = 'poker-llm-config';
 
 const DEFAULT_CONFIG: LLMConfig = {
   apiKey: '',
-  baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-v4-flash',
+  baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
+  model: 'glm-5.1',
   enabled: false,
 };
 
@@ -33,7 +33,7 @@ export function saveLLMConfig(config: LLMConfig): void {
 // Convert card to readable Chinese string
 function cardStr(c: Card): string {
   const suitMap: Record<string, string> = {
-    hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠',
+    hearts: '红心', diamonds: '方块', clubs: '梅花', spades: '黑桃',
   };
   const rankMap: Record<number, string> = {
     2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10',

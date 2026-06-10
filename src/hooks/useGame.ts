@@ -79,6 +79,7 @@ export function useGame() {
 
   const getAIDecision = async (state: GameState, playerIndex: number) => {
     const llmConfig = loadLLMConfig();
+    console.log('🔍 getAIDecision config:', { enabled: llmConfig.enabled, hasKey: !!llmConfig.apiKey, model: llmConfig.model, baseUrl: llmConfig.baseUrl });
     if (llmConfig.enabled && llmConfig.apiKey) {
       return makeLLMDecision(state, playerIndex, llmConfig);
     }

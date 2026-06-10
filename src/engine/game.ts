@@ -51,7 +51,7 @@ export function createGameState(): GameState {
   // Randomly select 4 poker pros from the pool
   const pros = selectRandomPros(4);
   const players = [
-    makePlayer(0, '你', true, 0),
+    makePlayer(0, 'July', true, 0),
     ...pros.map((pro, i) => {
       const p = makePlayer(i + 1, pro.name, false, i + 1);
       p.proInfo = pro;

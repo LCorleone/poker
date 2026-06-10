@@ -1,5 +1,6 @@
 import { GameState, GameAction, Card } from '../engine/types';
 import { evaluateHand } from '../engine/evaluate';
+import { calculatePosition } from '../engine/gto';
 
 // Last error for debugging (must be declared before use)
 let lastError: string | null = null;
@@ -71,6 +72,20 @@ function phaseName(phase: string): string {
 // Build the action history summary
 function buildActionSummary(state: GameState): string {
   if (state.actionHistory.length === 0) return '无';
+  // Build position map
+  const posOrder: string[] = ['BTN', 'SB', 'BB', 'UTG', 'MP', 'CO'];
+  const posLabels: Record<string, string> = { BTN: '庄家', SB: '小盲', BB: '大盲', UTG: 'UTG', MP: 'MP', CO: 'CO' };
+  const activeSeats: number[] = [];
+  for (let i = 0; i < state.players.length; i++) {
+    const idx = (state.dealerIndex + i) % state.players.length;
+    if (!state.players[idx].isEliminated) activeSeats.push(idx);
+  }
+  const seatToPos = new Map<number, string>();
+  for (let i = 0; i < activeSeats.length; i++) {
+    const p = posOrder[i % posOrder.length];
+    seatToPos.set(activeSeats[i], posLabels[p] || p);
+  }
+
   const lines: string[] = [];
   let currentPhase = '';
   for (const rec of state.actionHistory) {
@@ -80,6 +95,7 @@ function buildActionSummary(state: GameState): string {
     }
     const p = state.players.find(pl => pl.id === rec.playerId);
     const name = p?.name || `玩家${rec.playerId}`;
+    const pos = p ? seatToPos.get(p.seatIndex) || '' : '';
     let act = '';
     switch (rec.action.type) {
       case 'fold': act = '弃牌'; break;
@@ -87,7 +103,7 @@ function buildActionSummary(state: GameState): string {
       case 'call': act = '跟注'; break;
       case 'raise': act = `加注到${rec.action.amount}`; break;
     }
-    lines.push(`  ${name}: ${act}`);
+    lines.push(`  ${name}[${pos}]: ${act}`);
   }
   return lines.join('\n');
 }
@@ -112,6 +128,7 @@ export async function makeLLMDecision(
   playerIndex: number,
   config: LLMConfig,
 ): Promise<AIDecision> {
+  console.log('🤖 makeLLMDecision called for player', playerIndex, 'enabled:', config.enabled);
   // Reset chat history when a new hand starts
   resetChatHistoryForHand(state.handNumber);
 
@@ -143,19 +160,28 @@ export async function makeLLMDecision(
 
   // Smart max: cap raise to discourage reckless all-in, but still allow it
   const potSizedMax = state.currentBet + state.pot;
-  const stackProtectedMax = player.currentBet + player.chips * 0.6;
-  const effectiveMaxRaise = Math.min(potSizedMax, stackProtectedMax, fullStack);
+  const normalMax = Math.min(potSizedMax, player.currentBet + player.chips * 0.8, fullStack);
   const maxRaise = fullStack;
   if (maxRaise >= minRaise && player.chips > 0) {
-    actions.push(`raise (min: ${minRaise}, max: ${effectiveMaxRaise})`);
+    actions.push(`raise (min: ${minRaise}, 建议: ${normalMax}, 最大: ${maxRaise})`);
   }
 
   // Opponents info
   const opponents = state.players
     .filter(p => p.id !== player.id && !p.isEliminated)
     .map(p => {
-      let status = p.isFolded ? '已弃牌' : p.isAllIn ? '全下(已无筹码，加注无意义)' : `筹码${p.chips}, 本轮下注${p.currentBet}`;
-      return `${p.name}(${status})`;
+      const pos = calculatePosition(p.seatIndex, state.dealerIndex, state.players);
+      const posLabel = { BTN: '庄家', SB: '小盲', BB: '大盲', UTG: 'UTG', MP: 'MP', CO: 'CO' }[pos] || pos;
+      let status: string;
+      if (p.isFolded) {
+        status = '已弃牌';
+      } else if (p.isAllIn) {
+        status = '全下';
+      } else {
+        const hasActed = state.actionHistory.some(r => r.playerId === p.id && r.phase === state.phase);
+        status = `筹码${p.chips}${p.currentBet > 0 ? `, 本轮下注${p.currentBet}` : hasActed ? ', 过牌' : ', 未行动'}`;
+      }
+      return `${p.name}[${posLabel}](${status})`;
     })
     .join('; ');
 
@@ -192,7 +218,7 @@ ${proInfo.personality}
 
 格式规则:
 - action只能是: fold, check, call, raise
-- raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
+- raise时amount范围: ${minRaise}(最小) ~ ${normalMax}(建议上限) ~ ${maxRaise}(极限，仅超强牌或特殊诈唬)
 - 如果可以check，不要fold
 - 不要每次都加注到最大值，大多数加注应该适中
 
@@ -206,9 +232,10 @@ ${sizingGuide}`
 
 格式规则:
 - action只能是: fold, check, call, raise
-- raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
+- raise时amount范围: ${minRaise}(最小) ~ ${normalMax}(建议上限) ~ ${maxRaise}(极限，仅超强牌或特殊诈唬)
 - 如果可以check，不要fold
 - 不要频繁all-in(全下)，all-in是最后的手段
+- 不要每次都加注到最大值，大多数加注应该适中
 - 不要每次都加注到最大值，大多数加注应该适中
 
 ${sizingGuide}`;
@@ -245,6 +272,20 @@ ${buildActionSummary(state)}
     // 60s timeout (reasoning models can be slow)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    const messages = buildMessages(player.id, systemPrompt, userPrompt);
+    const historyCount = (chatHistories.get(player.id) || []).length;
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`📤 ${player.name} → LLM (历史消息: ${historyCount}条, 总消息: ${messages.length}条)`);
+    console.log(`${'='.repeat(60)}`);
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const isHistory = i > 0 && i < messages.length - 1;
+      console.log(`[${msg.role}]${isHistory ? ' 📜历史' : ''}`);
+      console.log(msg.content);
+      console.log('---');
+    }
+    console.log(`${'='.repeat(60)}\n`);
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -299,7 +340,7 @@ ${buildActionSummary(state)}
     const action: GameAction = { type: parsed.action };
     if (parsed.action === 'raise' && parsed.amount) {
       // Hard cap: protect against all-in unless truly intended
-      const clampedAmount = Math.floor(Math.min(parsed.amount, effectiveMaxRaise));
+      const clampedAmount = Math.floor(Math.min(parsed.amount, maxRaise));
       action.amount = Math.max(minRaise, clampedAmount);
     }
 
@@ -324,12 +365,15 @@ ${buildActionSummary(state)}
     }
     chatHistories.set(player.id, history);
 
+    console.log(`📥 ${player.name} ← LLM: ${JSON.stringify({ action, thought: parsed.thought })}`);
+
     return {
       action,
       thought: parsed.thought || '思考中...',
     };
   } catch (err) {
-    console.error('LLM decision error:', err);
+    console.error('❌❌❌ LLM decision FAILED:', err);
+    console.error('Config:', { model: config.model, baseUrl: config.baseUrl, enabled: config.enabled, hasKey: !!config.apiKey });
     lastError = `${err}`;
     return fallbackDecision(state, playerIndex);
   }

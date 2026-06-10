@@ -10,9 +10,9 @@ import {
 } from './types';
 import { createDeck, shuffleDeck, dealCards } from './deck';
 import { evaluateHand, compareHands, getHandStrength, estimateEquity } from './evaluate';
+import { selectRandomPros } from './pros';
 
-const PLAYER_NAMES = ['你', '小明', '小红', '老王', '阿强'];
-const STARTING_CHIPS = 1000;
+const STARTING_CHIPS = 5000;
 const SMALL_BLIND = 10;
 const BIG_BLIND = 20;
 
@@ -31,9 +31,7 @@ const BLIND_SCHEDULE = [
 
 const HANDS_PER_LEVEL = 10;
 
-const AI_PERSONAS: AIPersona[] = ['tag', 'lag', 'calling-station', 'nit', 'maniac'];
-
-function makePlayer(id: number, name: string, isHuman: boolean, seatIndex: number, persona?: AIPersona): Player {
+function makePlayer(id: number, name: string, isHuman: boolean, seatIndex: number): Player {
   return {
     id,
     name,
@@ -46,20 +44,20 @@ function makePlayer(id: number, name: string, isHuman: boolean, seatIndex: numbe
     isHuman,
     isEliminated: false,
     seatIndex,
-    persona,
   };
 }
 
 export function createGameState(): GameState {
-  // Shuffle AI personas so player can't predict styles
-  const shuffled = structuredClone(AI_PERSONAS);
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  const players = PLAYER_NAMES.map((name, i) =>
-    makePlayer(i, name, i === 0, i, i === 0 ? undefined : shuffled[i - 1])
-  );
+  // Randomly select 4 poker pros from the pool
+  const pros = selectRandomPros(4);
+  const players = [
+    makePlayer(0, '你', true, 0),
+    ...pros.map((pro, i) => {
+      const p = makePlayer(i + 1, pro.name, false, i + 1);
+      p.proInfo = pro;
+      return p;
+    }),
+  ];
 
   return {
     players,

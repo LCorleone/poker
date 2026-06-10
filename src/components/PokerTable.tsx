@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GameState } from '../engine/types';
-import { evaluateHand } from '../engine/evaluate';
+import { evaluateHand, calculateExactEquity } from '../engine/evaluate';
 import { HandResult } from '../engine/game';
 import PlayerSeat from './PlayerSeat';
 import CardComponent from './Card';
@@ -8,6 +8,7 @@ import CardComponent from './Card';
 interface PokerTableProps {
   gameState: GameState;
   handResult: HandResult | null;
+  showEquity: boolean;
 }
 
 // Seat positions around the table (top, left, right, bottom-left, bottom)
@@ -19,8 +20,14 @@ const SEAT_POSITIONS = [
   'seat-right',    // 阿强 - right
 ];
 
-const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult }) => {
+const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEquity }) => {
   const { players, communityCards, pot, phase, dealerIndex, currentPlayerIndex } = gameState;
+
+  // Calculate exact equity when toggled on
+  const equityMap = useMemo(() => {
+    if (!showEquity) return new Map<number, number>();
+    return calculateExactEquity(players, communityCards);
+  }, [showEquity, players, communityCards]);
 
   // Calculate SB and BB seat indices (persist for entire hand regardless of fold)
   const sbSeatIndex = (() => {
@@ -109,6 +116,7 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult }) => {
                 isWinner={isWinner}
                 handName={handName}
                 lastThought={lastThoughts[player.id]}
+                equity={showEquity && !player.isFolded && !player.isEliminated ? equityMap.get(player.id) : undefined}
               />
             </div>
           );

@@ -1,6 +1,5 @@
-import { GameState, GameAction, Card, AIPersona } from '../engine/types';
+import { GameState, GameAction, Card } from '../engine/types';
 import { evaluateHand } from '../engine/evaluate';
-import { PERSONA_INFO } from './strategy';
 
 // Last error for debugging (must be declared before use)
 let lastError: string | null = null;
@@ -117,8 +116,7 @@ export async function makeLLMDecision(
   resetChatHistoryForHand(state.handNumber);
 
   const player = state.players[playerIndex];
-  const persona = player.persona || 'tag';
-  const personaInfo = PERSONA_INFO[persona as keyof typeof PERSONA_INFO];
+  const proInfo = player.proInfo;
   const toCall = state.currentBet - player.currentBet;
 
   // Evaluate current hand
@@ -141,9 +139,15 @@ export async function makeLLMDecision(
   }
   // Raise range
   const minRaise = state.currentBet + state.minRaise;
-  const maxRaise = player.currentBet + player.chips;
+  const fullStack = player.currentBet + player.chips;
+
+  // Smart max: cap raise to discourage reckless all-in, but still allow it
+  const potSizedMax = state.currentBet + state.pot * 2;
+  const stackProtectedMax = player.currentBet + player.chips * 0.6;
+  const effectiveMaxRaise = Math.min(potSizedMax, stackProtectedMax, fullStack);
+  const maxRaise = fullStack;
   if (maxRaise >= minRaise && player.chips > 0) {
-    actions.push(`raise (min: ${minRaise}, max: ${maxRaise})`);
+    actions.push(`raise (min: ${minRaise}, max: ${effectiveMaxRaise})`);
   }
 
   // Opponents info
@@ -160,18 +164,40 @@ export async function makeLLMDecision(
     ? `${(toCall / (state.pot + toCall) * 100).toFixed(1)}%`
     : 'N/A';
 
-  const systemPrompt = `你是一个德州扑克AI玩家。你的名字是"${player.name}"，你的风格是"${personaInfo?.label || '紧凶'}"(${personaInfo?.style || '稳健型'})。
+  const systemPrompt = proInfo
+    ? `你是真实的德州扑克职业选手"${proInfo.name}"(${proInfo.title})。
 
-你必须严格按照你的风格做出决策。用中文思考。
+你的真实打牌风格：
+${proInfo.style}
+
+你的性格特点：
+${proInfo.personality}
+
+你必须完全按照${proInfo.name}的真实风格来打牌。用中文思考。
+
+你必须返回严格的JSON格式(不要用markdown代码块):
+{"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程(用${proInfo.name}的口吻)"}
+
+规则:
+- action只能是: fold, check, call, raise
+- raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
+- 如果可以check，不要fold
+- 不要频繁all-in(全下)，all-in是最后的手段，除非你有充分的理由
+- 一般加注建议控制在底池的1/2到1倍之间
+- 注意保护你的筹码，合理管理下注尺寸
+- 保持你作为"${proInfo.name}"的真实风格`
+    : `你是一个德州扑克AI玩家。你的名字是"${player.name}"。
 
 你必须返回严格的JSON格式(不要用markdown代码块):
 {"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程"}
 
 规则:
 - action只能是: fold, check, call, raise
-- raise时amount必须在${minRaise}到${maxRaise}之间
+- raise时amount必须在${minRaise}到${effectiveMaxRaise}之间
 - 如果可以check，不要fold
-- 保持你的"${personaInfo?.label}"风格`;
+- 不要频繁all-in(全下)，all-in是最后的手段，除非你有充分的理由
+- 一般加注建议控制在底池的1/2到1倍之间
+- 保持稳健紧凶的打牌风格`;
 
   const userPrompt = `现在轮到你(${player.name})做决定了！
 
@@ -257,7 +283,9 @@ ${buildActionSummary(state)}
     const parsed = JSON.parse(jsonMatch[0]);
     const action: GameAction = { type: parsed.action };
     if (parsed.action === 'raise' && parsed.amount) {
-      action.amount = Math.max(minRaise, Math.min(maxRaise, Math.floor(parsed.amount)));
+      // Hard cap: protect against all-in unless truly intended
+      const clampedAmount = Math.floor(Math.min(parsed.amount, effectiveMaxRaise));
+      action.amount = Math.max(minRaise, clampedAmount);
     }
 
     // Validate action

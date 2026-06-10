@@ -1,6 +1,5 @@
 import React from 'react';
-import { Player, AIPersona } from '../engine/types';
-import { PERSONA_INFO } from '../ai/strategy';
+import { Player } from '../engine/types';
 import { evaluateHand } from '../engine/evaluate';
 import CardComponent from './Card';
 
@@ -15,6 +14,7 @@ interface PlayerSeatProps {
   isWinner: boolean;
   handName?: string;
   lastThought?: string;
+  equity?: number;
 }
 
 const PlayerSeat: React.FC<PlayerSeatProps> = ({
@@ -28,6 +28,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
   isWinner,
   handName,
   lastThought,
+  equity,
 }) => {
   if (player.isEliminated) {
     return (
@@ -71,6 +72,13 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
       {/* Hide AI thought bubble during play — reveals too much info */}
       {isWinner && handName && (
         <div className="winner-hand">{handName}</div>
+      )}
+      {equity !== undefined && equity > 0 && (
+        <div
+          className={`equity-badge ${equity >= 0.5 ? 'equity-high' : equity >= 0.25 ? 'equity-mid' : 'equity-low'}`}
+        >
+          {(equity * 100).toFixed(1)}%
+        </div>
       )}
     </div>
   );

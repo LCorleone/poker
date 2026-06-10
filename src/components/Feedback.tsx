@@ -7,9 +7,10 @@ interface FeedbackProps {
   handResult: HandResult | null;
   players: Player[];
   onDismiss: () => void;
+  onReplay: () => void;
 }
 
-const Feedback: React.FC<FeedbackProps> = ({ feedback, handResult, players, onDismiss }) => {
+const Feedback: React.FC<FeedbackProps> = ({ feedback, handResult, players, onDismiss, onReplay }) => {
   const winnerNames = handResult?.winners.map((w: { playerId: number; amount: number; hand: { name: string } }) => {
     const p = players.find(pl => pl.id === w.playerId);
     return p ? `${p.name}(${w.hand.name})` : '';
@@ -59,9 +60,14 @@ const Feedback: React.FC<FeedbackProps> = ({ feedback, handResult, players, onDi
           {feedback.explanation}
         </div>
 
-        <button className="btn btn-next" onClick={onDismiss}>
-          下一手牌 →
-        </button>
+        <div className="feedback-actions">
+          <button className="btn btn-replay" onClick={onReplay}>
+            🔄 查看回顾
+          </button>
+          <button className="btn btn-next" onClick={onDismiss}>
+            下一手牌 →
+          </button>
+        </div>
       </div>
     </div>
   );

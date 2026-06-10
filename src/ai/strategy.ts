@@ -1,4 +1,4 @@
-import { GameState, GameAction, AIPersona } from '../engine/types';
+import { GameState, GameAction, Player, HandRank, Card } from '../engine/types';
 import { evaluateHand, estimateEquity } from '../engine/evaluate';
 
 export interface AIDecision {
@@ -6,7 +6,7 @@ export interface AIDecision {
   thought: string;
 }
 
-// Persona configurations
+// Persona configurations (kept for backward compat if no proInfo)
 interface PersonaConfig {
   label: string;
   style: string;
@@ -17,60 +17,64 @@ interface PersonaConfig {
   tightness: number;       // preflop tightness (higher = plays fewer hands)
 }
 
-const PERSONAS: Record<AIPersona, PersonaConfig> = {
-  tag: {
-    label: '紧凶',
-    style: '稳健型玩家',
-    foldThreshold: -0.08,
-    raiseThreshold: 0.72,
-    bluffFreq: 0.08,
-    raiseSize: 0.75,
-    tightness: 0.8,
-  },
+const DEFAULT_PERSONA: PersonaConfig = {
+  label: '紧凶',
+  style: '稳健型玩家',
+  foldThreshold: -0.08,
+  raiseThreshold: 0.72,
+  bluffFreq: 0.08,
+  raiseSize: 0.75,
+  tightness: 0.8,
+};
+
+// Legacy personas kept for reference (not actively used)
+const PERSONAS: Record<string, PersonaConfig> = {
+  tag: DEFAULT_PERSONA,
   lag: {
-    label: '松凶',
-    style: '激进型玩家',
-    foldThreshold: -0.15,
-    raiseThreshold: 0.65,
-    bluffFreq: 0.15,
-    raiseSize: 0.9,
-    tightness: 0.4,
+    label: '松凶', style: '激进型玩家',
+    foldThreshold: -0.15, raiseThreshold: 0.65, bluffFreq: 0.15, raiseSize: 0.9, tightness: 0.4,
   },
   'calling-station': {
-    label: '跟注站',
-    style: '爱跟注的玩家',
-    foldThreshold: -0.25,
-    raiseThreshold: 0.85,
-    bluffFreq: 0.02,
-    raiseSize: 0.5,
-    tightness: 0.3,
+    label: '跟注站', style: '爱跟注的玩家',
+    foldThreshold: -0.25, raiseThreshold: 0.85, bluffFreq: 0.02, raiseSize: 0.5, tightness: 0.3,
   },
   nit: {
-    label: '岩石',
-    style: '极保守玩家',
-    foldThreshold: -0.03,
-    raiseThreshold: 0.8,
-    bluffFreq: 0.01,
-    raiseSize: 0.6,
-    tightness: 0.9,
+    label: '岩石', style: '极保守玩家',
+    foldThreshold: -0.03, raiseThreshold: 0.8, bluffFreq: 0.01, raiseSize: 0.6, tightness: 0.9,
   },
   maniac: {
-    label: '疯子',
-    style: '疯狂下注型',
-    foldThreshold: -0.2,
-    raiseThreshold: 0.5,
-    bluffFreq: 0.25,
-    raiseSize: 1.2,
-    tightness: 0.2,
+    label: '疯子', style: '疯狂下注型',
+    foldThreshold: -0.2, raiseThreshold: 0.5, bluffFreq: 0.25, raiseSize: 1.2, tightness: 0.2,
   },
 };
 
 export const PERSONA_INFO = PERSONAS;
 
+// Build a PersonaConfig from pro's looseness/aggression/bluffFreq
+function proToConfig(proInfo: NonNullable<Player['proInfo']>): PersonaConfig {
+  const { looseness, aggression, bluffFreq } = proInfo;
+  // Map looseness to tightness (inverse) and foldThreshold
+  const tightness = 1 - looseness;
+  const foldThreshold = -0.05 - (looseness * 0.2); // looser = more negative = call more
+  const raiseThreshold = 0.85 - (aggression * 0.35); // more aggressive = lower raise threshold
+  const raiseSize = 0.5 + (aggression * 0.7); // more aggressive = bigger raises
+  return {
+    label: proInfo.title,
+    style: proInfo.style,
+    foldThreshold,
+    raiseThreshold,
+    bluffFreq,
+    raiseSize,
+    tightness,
+  };
+}
+
 export function makeAIDecision(state: GameState, playerIndex: number): AIDecision {
   const player = state.players[playerIndex];
-  const persona = player.persona || 'tag';
-  const config = PERSONAS[persona];
+  // Build config from proInfo if available, otherwise use default
+  const config = player.proInfo
+    ? proToConfig(player.proInfo)
+    : DEFAULT_PERSONA;
   const toCall = state.currentBet - player.currentBet;
 
   // Get hand evaluation
@@ -98,11 +102,21 @@ export function makeAIDecision(state: GameState, playerIndex: number): AIDecisio
   // Pot odds
   const potOdds = state.pot > 0 && toCall > 0 ? toCall / (state.pot + toCall) : 0;
 
+  const monster = isMonsterHand(player.holeCards, state.communityCards);
+
   // Decision logic
   if (toCall === 0) {
     if (adjustedEquity > config.raiseThreshold) {
-      const raiseAmount = calculateRaise(state, player, config.raiseSize);
+      const raiseAmount = calculateRaise(state, player, config.raiseSize, monster);
       if (raiseAmount) {
+        // Stack protection: don't raise if it would commit too much
+        const chipsAfterRaise = player.chips - (raiseAmount - player.currentBet);
+        if (!monster && chipsAfterRaise < 1500 && chipsAfterRaise > 0) {
+          return {
+            action: { type: 'check' },
+            thought: `${handDesc}不错(${Math.round(adjustedEquity * 100)}%)，但筹码不多了，过牌控制风险`,
+          };
+        }
         return {
           action: { type: 'raise', amount: raiseAmount },
           thought: `${handDesc}很强(${Math.round(adjustedEquity * 100)}%)，加注获取价值`,
@@ -119,9 +133,9 @@ export function makeAIDecision(state: GameState, playerIndex: number): AIDecisio
 
   // Need to pay
   if (adjustedEquity < potOdds + config.foldThreshold) {
-    // Bluff check
-    if (Math.random() < config.bluffFreq && player.chips > toCall * 2) {
-      const raiseAmount = calculateRaise(state, player, config.raiseSize);
+    // Bluff check — only if enough chips to bluff responsibly
+    if (Math.random() < config.bluffFreq && player.chips > toCall * 3 && player.chips > 1500) {
+      const raiseAmount = calculateRaise(state, player, config.raiseSize, false);
       if (raiseAmount) {
         return {
           action: { type: 'raise', amount: raiseAmount },
@@ -135,9 +149,17 @@ export function makeAIDecision(state: GameState, playerIndex: number): AIDecisio
     };
   }
 
-  if (adjustedEquity > config.raiseThreshold && player.chips > toCall * 2) {
-    const raiseAmount = calculateRaise(state, player, config.raiseSize);
+  if (adjustedEquity > config.raiseThreshold && player.chips > toCall * 3) {
+    const raiseAmount = calculateRaise(state, player, config.raiseSize, monster);
     if (raiseAmount) {
+      // Stack protection: downgrade to call if raise commits too much
+      const chipsAfterRaise = player.chips - (raiseAmount - player.currentBet);
+      if (!monster && chipsAfterRaise < 1500 && chipsAfterRaise > 0) {
+        return {
+          action: { type: 'call' },
+          thought: `${handDesc}不错(${Math.round(adjustedEquity * 100)}%)，但底池太大，跟注控制风险`,
+        };
+      }
       return {
         action: { type: 'raise', amount: raiseAmount },
         thought: `${handDesc}很强(${Math.round(adjustedEquity * 100)}%)，加注!`,
@@ -146,9 +168,9 @@ export function makeAIDecision(state: GameState, playerIndex: number): AIDecisio
   }
 
   if (adjustedEquity >= potOdds + config.foldThreshold) {
-    // Bluff raise sometimes
-    if (Math.random() < config.bluffFreq && player.chips > toCall * 2) {
-      const raiseAmount = calculateRaise(state, player, config.raiseSize);
+    // Bluff raise sometimes — only with healthy stack
+    if (Math.random() < config.bluffFreq && player.chips > toCall * 3 && player.chips > 1500) {
+      const raiseAmount = calculateRaise(state, player, config.raiseSize, false);
       if (raiseAmount) {
         return {
           action: { type: 'raise', amount: raiseAmount },
@@ -170,12 +192,40 @@ export function makeAIDecision(state: GameState, playerIndex: number): AIDecisio
   };
 }
 
-function calculateRaise(state: GameState, player: { currentBet: number; chips: number }, sizeMultiplier: number): number | null {
-  const raiseAmount = Math.min(
-    player.currentBet + player.chips,
-    state.currentBet + state.pot * (sizeMultiplier * (0.8 + Math.random() * 0.4))
-  );
+function isMonsterHand(cards: Card[], communityCards: Card[]): boolean {
+  if (communityCards.length < 3) {
+    // Preflop: only AA, KK, QQ
+    if (cards.length === 2 && cards[0].rank === cards[1].rank && cards[0].rank >= 12) return true;
+    return false;
+  }
+  // Post-flop: two pair or better
+  const hand = evaluateHand([...cards, ...communityCards]);
+  return hand.rank >= HandRank.TWO_PAIR;
+}
+
+function calculateRaise(
+  state: GameState,
+  player: { currentBet: number; chips: number },
+  sizeMultiplier: number,
+  monster: boolean = false
+): number | null {
   const minRaise = state.currentBet + state.minRaise;
+  const rawRaise = state.currentBet + state.pot * sizeMultiplier * (0.9 + Math.random() * 0.2);
+
+  let maxRaise: number;
+  if (monster) {
+    // Monster hands can go all-in
+    maxRaise = player.currentBet + player.chips;
+  } else {
+    // Keep at least 40% of stack after raising
+    const maxBetFromStack = player.currentBet + player.chips * 0.6;
+    // Also cap at 2x pot (reasonable sizing)
+    const maxPotSizing = state.currentBet + state.pot * 2;
+    maxRaise = Math.min(maxBetFromStack, maxPotSizing);
+  }
+
+  const raiseAmount = Math.min(rawRaise, maxRaise, player.currentBet + player.chips);
+
   if (raiseAmount >= minRaise && player.chips > 0) {
     return Math.floor(Math.max(raiseAmount, minRaise));
   }

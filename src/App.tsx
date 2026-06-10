@@ -45,6 +45,7 @@ function App() {
   const [showLLMSettings, setShowLLMSettings] = React.useState(false);
   const [showReplay, setShowReplay] = React.useState(false);
   const [showTutorial, setShowTutorial] = React.useState(false);
+  const [showEquity, setShowEquity] = React.useState(false);
 
   if (showTutorial) {
     return (
@@ -70,7 +71,7 @@ function App() {
           <h1 className="welcome-title">🃏 德州扑克训练</h1>
           <p className="welcome-subtitle">与4个AI对手对战，提升你的扑克技巧</p>
           <div className="welcome-info">
-            <div className="info-item">💰 起始筹码: 1,000</div>
+            <div className="info-item">💰 起始筹码: 5,000</div>
             <div className="info-item">🎲 盲注: 10/20</div>
             <div className="info-item">👥 玩家: 你 + 4个AI</div>
           </div>
@@ -101,7 +102,7 @@ function App() {
         <BlindInfo {...blindInfo} handNumber={gameState.handNumber} />
       </header>
 
-      <PokerTable gameState={gameState} handResult={handResult} />
+      <PokerTable gameState={gameState} handResult={handResult} showEquity={showEquity} />
 
       {isHumanTurn && !isProcessing && humanPosition && (gtoAdvice || postFlopAdvice) && (
         <GTOGuide advice={gtoAdvice ?? undefined} position={humanPosition} postFlopAdvice={postFlopAdvice ?? undefined} />
@@ -147,13 +148,8 @@ function App() {
           handResult={handResult}
           players={gameState.players}
           onDismiss={dealNewHand}
+          onReplay={() => setShowReplay(true)}
         />
-      )}
-
-      {gameState.isHandComplete && feedback && !isGameOver && !humanWon && (
-        <button className="btn btn-replay-floating" onClick={() => setShowReplay(true)}>
-          🔄 查看回顾
-        </button>
       )}
 
       {/* If hand is complete but no feedback (e.g. won by fold), just show next button */}
@@ -208,6 +204,15 @@ function App() {
       <button className="llm-settings-toggle" onClick={() => setShowLLMSettings(true)} title="AI设置">
         🤖
       </button>
+      {gameState.phase !== 'waiting' && !gameState.isHandComplete && gameState.players.filter(p => !p.isFolded && !p.isEliminated).length > 1 && (
+        <button
+          className={`equity-toggle${showEquity ? ' active' : ''}`}
+          onClick={() => setShowEquity(v => !v)}
+          title="显示/隐藏所有玩家胜率"
+        >
+          📊 胜率
+        </button>
+      )}
     </div>
   );
 }

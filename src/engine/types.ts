@@ -48,6 +48,16 @@ export interface Player {
   isEliminated: boolean;
   seatIndex: number;
   persona?: AIPersona;
+  proInfo?: {
+    id: string;
+    name: string;
+    title: string;
+    style: string;
+    personality: string;
+    looseness: number;
+    aggression: number;
+    bluffFreq: number;
+  };
 }
 
 // ===================== Game State =====================

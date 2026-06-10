@@ -231,6 +231,135 @@ export function countOuts(holeCards: Card[], communityCards: Card[]): number {
   return outs;
 }
 
+// Exact equity calculation — knows all players' hole cards (TV-style)
+export function calculateExactEquity(
+  players: { id: number; holeCards: Card[]; isFolded: boolean; isEliminated: boolean }[],
+  communityCards: Card[]
+): Map<number, number> {
+  const result = new Map<number, number>();
+  const active = players.filter(p => !p.isFolded && !p.isEliminated && p.holeCards.length === 2);
+
+  if (active.length < 2) {
+    for (const p of active) result.set(p.id, 1);
+    return result;
+  }
+
+  // Build known cards
+  const known = new Set<string>();
+  for (const p of active) {
+    for (const c of p.holeCards) known.add(`${c.suit}-${c.rank}`);
+  }
+  for (const c of communityCards) known.add(`${c.suit}-${c.rank}`);
+
+  // Build remaining deck
+  const remaining: Card[] = [];
+  const suits: Card['suit'][] = ['hearts', 'diamonds', 'clubs', 'spades'];
+  for (const s of suits) {
+    for (let r = 2; r <= 14; r++) {
+      if (!known.has(`${s}-${r}`)) {
+        remaining.push({ suit: s, rank: r as Card['rank'] });
+      }
+    }
+  }
+
+  const cardsNeeded = 5 - communityCards.length;
+
+  // Direct evaluation at showdown (river)
+  if (cardsNeeded === 0) {
+    const evals = active.map(p => ({
+      id: p.id,
+      hand: evaluateHand([...p.holeCards, ...communityCards])
+    }));
+    let best = evals[0].hand;
+    for (let i = 1; i < evals.length; i++) {
+      if (compareHands(evals[i].hand, best) > 0) best = evals[i].hand;
+    }
+    const winners = evals.filter(e => compareHands(e.hand, best) === 0);
+    for (const p of active) {
+      result.set(p.id, winners.some(w => w.id === p.id) ? 1 / winners.length : 0);
+    }
+    return result;
+  }
+
+  // Full enumeration for 1-2 cards needed (turn, river) — fast
+  if (cardsNeeded <= 2) {
+    const winsMap = new Map<number, number>();
+    for (const p of active) winsMap.set(p.id, 0);
+    let total = 0;
+
+    const enumerate = (startIdx: number, depth: number, board: Card[]) => {
+      if (depth === cardsNeeded) {
+        const fullBoard = [...communityCards, ...board];
+        const evals = active.map(p => ({
+          id: p.id,
+          hand: evaluateHand([...p.holeCards, ...fullBoard])
+        }));
+        let best = evals[0].hand;
+        for (let i = 1; i < evals.length; i++) {
+          if (compareHands(evals[i].hand, best) > 0) best = evals[i].hand;
+        }
+        const winners = evals.filter(e => compareHands(e.hand, best) === 0);
+        for (const w of winners) {
+          winsMap.set(w.id, (winsMap.get(w.id) || 0) + 1 / winners.length);
+        }
+        total++;
+        return;
+      }
+      for (let i = startIdx; i < remaining.length; i++) {
+        board.push(remaining[i]);
+        enumerate(i + 1, depth + 1, board);
+        board.pop();
+      }
+    };
+
+    enumerate(0, 0, []);
+    for (const p of active) {
+      result.set(p.id, total > 0 ? (winsMap.get(p.id) || 0) / total : 0);
+    }
+    return result;
+  }
+
+  // Monte Carlo for preflop (cardsNeeded = 3, 4, or 5)
+  // We know all players' cards, just simulate remaining board
+  const iterations = 1000;
+  const winsMap = new Map<number, number>();
+  for (const p of active) winsMap.set(p.id, 0);
+  let total = 0;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    // Fisher-Yates shuffle
+    const shuffled = [...remaining];
+    for (let j = shuffled.length - 1; j > 0; j--) {
+      const k = Math.floor(Math.random() * (j + 1));
+      [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+    }
+
+    const simBoard = [...communityCards];
+    for (let c = 0; c < cardsNeeded; c++) {
+      simBoard.push(shuffled[c]);
+    }
+
+    const evals = active.map(p => ({
+      id: p.id,
+      hand: evaluateHand([...p.holeCards, ...simBoard])
+    }));
+    let best = evals[0].hand;
+    for (let i = 1; i < evals.length; i++) {
+      if (compareHands(evals[i].hand, best) > 0) best = evals[i].hand;
+    }
+    const winners = evals.filter(e => compareHands(e.hand, best) === 0);
+    for (const w of winners) {
+      winsMap.set(w.id, (winsMap.get(w.id) || 0) + 1 / winners.length);
+    }
+    total++;
+  }
+
+  for (const p of active) {
+    result.set(p.id, (winsMap.get(p.id) || 0) / total);
+  }
+  return result;
+}
+
 // Simple equity estimation via Monte Carlo (lightweight)
 export function estimateEquity(
   holeCards: Card[],

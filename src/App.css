@@ -701,6 +701,13 @@
   margin: 10px 0;
 }
 
+.feedback-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
 /* ========== Game Over ========== */
 .game-over-panel {
   border-color: rgba(255, 215, 0, 0.5);
@@ -1845,6 +1852,60 @@
 .llm-settings-toggle:hover {
   background: rgba(0, 0, 0, 0.7);
   border-color: rgba(33, 150, 243, 0.7);
+}
+
+/* ========== Equity Toggle & Badge ========== */
+.equity-toggle {
+  position: fixed;
+  top: 8px;
+  right: 100px;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.equity-toggle:hover {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: rgba(76, 175, 80, 0.7);
+}
+
+.equity-toggle.active {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: #4caf50;
+  color: #4caf50;
+}
+
+.equity-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-top: 2px;
+  text-align: center;
+}
+
+.equity-high {
+  background: rgba(76, 175, 80, 0.25);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.equity-mid {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+}
+
+.equity-low {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.4);
 }
 
 .llm-settings-overlay {

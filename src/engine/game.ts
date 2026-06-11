@@ -245,8 +245,9 @@ export function performAction(state: GameState, action: GameAction): GameState {
 
     case 'raise': {
       const raiseTotal = action.amount ?? 0;
-      if (raiseTotal <= player.currentBet || raiseTotal > player.currentBet + player.chips) {
-        // Invalid raise — fallback to call or check
+      // Invalid raise: not exceeding current bet, or can't afford it
+      if (raiseTotal <= s.currentBet || raiseTotal > player.currentBet + player.chips) {
+        // Fallback to call or check
         const toCall = Math.min(s.currentBet - player.currentBet, player.chips);
         player.chips -= toCall;
         player.currentBet += toCall;
@@ -497,9 +498,9 @@ export function getAvailableActions(state: GameState): GameAction[] {
 
 export function getRaiseRange(state: GameState): { min: number; max: number } {
   const player = state.players[state.currentPlayerIndex];
-  const toCall = state.currentBet - player.currentBet;
-  const min = state.currentBet + state.minRaise;
+  const min = Math.max(state.currentBet + state.minRaise, state.currentBet + 1);
   const max = player.currentBet + player.chips; // all-in amount as total bet
+  if (min > max) return { min: max, max };
   return { min, max };
 }
 

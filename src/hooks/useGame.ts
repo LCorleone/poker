@@ -6,6 +6,7 @@ import {
   DecisionFeedback,
   ActionRecord,
   Player,
+  HandRank,
 } from '../engine/types';
 import {
   createGameState,
@@ -20,8 +21,9 @@ import {
   advancePhase,
   findNextCanAct,
 } from '../engine/game';
+import { evaluateHand } from '../engine/evaluate';
 import { makeAIDecision } from '../ai/strategy';
-import { makeLLMDecision, loadLLMConfig } from '../ai/llmStrategy';
+import { makeLLMDecision, loadLLMConfig, updatePlayerMemory, resetPlayerMemories, clearTableChats } from '../ai/llmStrategy';
 import { getGTOAdvice, calculatePosition, getPostFlopAdvice, GTOAdvice, Position, PostFlopAdvice } from '../engine/gto';
 import { useStats } from './useStats';
 
@@ -67,6 +69,39 @@ export function useGame() {
         ? result.winners.find(w => w.playerId === human.id)!.amount - human.totalBetThisHand
         : -human.totalBetThisHand;
       recordHandResult(isWinner, chipDelta);
+    }
+
+    // Update cross-hand memory for AI players
+    const winnerIds = new Set(result.winners.map(w => w.playerId));
+    // Find the best winning hand rank for bad beat detection
+    const bestWinnerRank = result.winners.length > 0
+      ? Math.max(...result.winners.map(w => w.hand.rank))
+      : 0;
+
+    for (const p of gs.players) {
+      if (p.isHuman || p.isEliminated) continue;
+      const isWinner = winnerIds.has(p.id);
+      const wentToShowdown = !p.isFolded && gs.communityCards.length >= 3;
+
+      let resultType: 'win' | 'loss' | 'fold';
+      let hadStrongHand = false;
+
+      if (p.isFolded) {
+        resultType = 'fold';
+      } else if (isWinner) {
+        resultType = 'win';
+      } else {
+        resultType = 'loss';
+        // Bad beat: had two pair or better but still lost at showdown
+        if (wentToShowdown) {
+          const hand = evaluateHand([...p.holeCards, ...gs.communityCards]);
+          if (hand.rank >= HandRank.TWO_PAIR && hand.rank < bestWinnerRank) {
+            hadStrongHand = true;
+          }
+        }
+      }
+
+      updatePlayerMemory(p.id, gs.handNumber, resultType, hadStrongHand);
     }
     const finalState = { ...gs, players: updatedPlayers };
     // Save snapshot with hole cards for replay (before new hand clears them)
@@ -175,6 +210,8 @@ export function useGame() {
   }, [finishHand]);
 
   const startGame = useCallback(() => {
+    resetPlayerMemories();
+    clearTableChats();
     const gs = createGameState();
     const withHand = startNewHand(gs);
     setState(prev => ({

@@ -16,6 +16,8 @@ import QuizMode from './components/QuizMode';
 import HandReplay from './components/HandReplay';
 import Tutorial from './components/Tutorial';
 import LLMSettings from './components/LLMSettings';
+import ChatPanel from './components/ChatPanel';
+import { ChatMessage, getTableChats, clearTableChats, addPlayerChat } from './ai/llmStrategy';
 
 function App() {
   const {
@@ -40,13 +42,19 @@ function App() {
     dealNewHand,
   } = useGame();
 
-  const humanPlayer = gameState.players.find(p => p.isHuman);
-
+  const [showEquity, setShowEquity] = React.useState(false);
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
   const [showQuiz, setShowQuiz] = React.useState(false);
   const [showLLMSettings, setShowLLMSettings] = React.useState(false);
   const [showReplay, setShowReplay] = React.useState(false);
   const [showTutorial, setShowTutorial] = React.useState(false);
-  const [showEquity, setShowEquity] = React.useState(false);
+
+  const humanPlayer = gameState.players.find(p => p.isHuman);
+
+  // Sync chat messages from LLM strategy
+  React.useEffect(() => {
+    setChatMessages(getTableChats());
+  }, [gameState, handResult]);
 
   if (showTutorial) {
     return (
@@ -141,6 +149,16 @@ function App() {
         players={gameState.players}
         phase={gameState.phase}
       />
+
+      {gameState.phase !== 'waiting' && (
+        <ChatPanel
+          chats={chatMessages}
+          onSend={(msg) => {
+            addPlayerChat('July', msg, gameState.handNumber, gameState.phase);
+            setChatMessages(getTableChats());
+          }}
+        />
+      )}
 
       {/* Show feedback + hand result when hand is complete */}
       {gameState.isHandComplete && feedback && !isGameOver && !humanWon && (

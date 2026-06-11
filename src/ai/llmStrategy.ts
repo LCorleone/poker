@@ -390,10 +390,11 @@ export async function makeLLMDecision(
     : 'N/A';
 
   const sizingGuide = `下注尺寸参考:
-- 高牌/弱对: 过牌或小注(底池的30-50%)
+- 高牌/弱对: 可以过牌，也可以小注试探(底池的30-50%)
 - 两对/三条: 中等下注(底池的50-75%)
 - 同花/葫芦/四条+: 可以大额下注(底池的75-100%)
-- 没有成牌时，只在有明确诈唬计划时才加注`;
+- 如果你是翻牌前的加注者，翻牌后通常应该继续下注(continuation bet)，即使没成牌
+- 对手过牌后，你可以考虑下注来夺取底池`;
 
   let systemPrompt: string;
   if (config.strategy === 'human') {

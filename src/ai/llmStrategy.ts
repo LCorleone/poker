@@ -236,7 +236,6 @@ ${sizingGuide}`
 - 如果可以check，不要fold
 - 不要频繁all-in(全下)，all-in是最后的手段
 - 不要每次都加注到最大值，大多数加注应该适中
-- 不要每次都加注到最大值，大多数加注应该适中
 
 ${sizingGuide}`;
 
@@ -329,7 +328,7 @@ ${buildActionSummary(state)}
     }
 
     // Parse JSON from response (handle markdown code blocks)
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/);
     if (!jsonMatch) {
       console.error('LLM response not JSON:', content);
       lastError = `Not JSON: ${content.slice(0, 100)}`;

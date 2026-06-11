@@ -97,71 +97,77 @@ export function useGame() {
     processingRef.current = true;
 
     const process = async (current: GameState) => {
-      // Check if hand is over
-      if (current.isHandComplete || current.phase === 'showdown') {
-        finishHand(current);
-        return;
-      }
-
-      const currentPlayer = current.players[current.currentPlayerIndex];
-
-      // If it's the human player's turn and they can still act, stop and wait
-      if (currentPlayer?.isHuman && !currentPlayer.isFolded && !currentPlayer.isAllIn) {
-        processingRef.current = false;
-        setState(prev => ({
-          ...prev,
-          gameState: { ...current },
-          isProcessing: false,
-        }));
-        return;
-      }
-
-      // If human is folded/all-in and it's their turn index, advance the game state
-      // to the next player who can act, then continue processing
-      if (currentPlayer?.isHuman && (currentPlayer.isFolded || currentPlayer.isAllIn)) {
-        const nextIdx = findNextCanAct(current, current.currentPlayerIndex);
-        const advanced = nextIdx >= 0 ? { ...current, currentPlayerIndex: nextIdx } : null;
-        if (!advanced) {
-          // No one can act (all remaining are all-in) — run out the board
-          const withBoard = advancePhase(current);
-          // Update UI to show new community cards
-          setState(prev => ({
-            ...prev,
-            gameState: { ...withBoard },
-          }));
-          if (withBoard.isHandComplete || withBoard.phase === 'showdown') {
-            finishHand(withBoard);
-          } else {
-            // Keep advancing until showdown
-            setTimeout(() => process(withBoard), 600);
-          }
+      try {
+        // Check if hand is over
+        if (current.isHandComplete || current.phase === 'showdown') {
+          finishHand(current);
           return;
         }
-        setTimeout(() => process(advanced), 100);
-        return;
-      }
 
-      // AI turn (async to support LLM)
-      let decision;
-      try {
-        decision = await getAIDecision(current, current.currentPlayerIndex);
-      } catch {
-        decision = { action: { type: 'fold' as const }, thought: '决策出错' };
-      }
-      // Clone and patch the action record with the thought
-      const next = performAction(current, decision.action);
-      if (decision.thought && next.actionHistory.length > 0) {
-        next.actionHistory[next.actionHistory.length - 1].thought = decision.thought;
-      }
+        const currentPlayer = current.players[current.currentPlayerIndex];
 
-      // Update UI so user can see each AI action
-      setState(prev => ({
-        ...prev,
-        gameState: { ...next },
-      }));
+        // If it's the human player's turn and they can still act, stop and wait
+        if (currentPlayer?.isHuman && !currentPlayer.isFolded && !currentPlayer.isAllIn) {
+          processingRef.current = false;
+          setState(prev => ({
+            ...prev,
+            gameState: { ...current },
+            isProcessing: false,
+          }));
+          return;
+        }
 
-      // Continue with next player after a delay
-      setTimeout(() => process(next), 600);
+        // If human is folded/all-in and it's their turn index, advance the game state
+        // to the next player who can act, then continue processing
+        if (currentPlayer?.isHuman && (currentPlayer.isFolded || currentPlayer.isAllIn)) {
+          const nextIdx = findNextCanAct(current, current.currentPlayerIndex);
+          const advanced = nextIdx >= 0 ? { ...current, currentPlayerIndex: nextIdx } : null;
+          if (!advanced) {
+            // No one can act (all remaining are all-in) — run out the board
+            const withBoard = advancePhase(current);
+            // Update UI to show new community cards
+            setState(prev => ({
+              ...prev,
+              gameState: { ...withBoard },
+            }));
+            if (withBoard.isHandComplete || withBoard.phase === 'showdown') {
+              finishHand(withBoard);
+            } else {
+              // Keep advancing until showdown
+              setTimeout(() => process(withBoard), 600);
+            }
+            return;
+          }
+          setTimeout(() => process(advanced), 100);
+          return;
+        }
+
+        // AI turn (async to support LLM)
+        let decision;
+        try {
+          decision = await getAIDecision(current, current.currentPlayerIndex);
+        } catch {
+          decision = { action: { type: 'fold' as const }, thought: '决策出错' };
+        }
+        // Clone and patch the action record with the thought
+        const next = performAction(current, decision.action);
+        if (decision.thought && next.actionHistory.length > 0) {
+          next.actionHistory[next.actionHistory.length - 1].thought = decision.thought;
+        }
+
+        // Update UI so user can see each AI action
+        setState(prev => ({
+          ...prev,
+          gameState: { ...next },
+        }));
+
+        // Continue with next player after a delay
+        setTimeout(() => process(next), 600);
+      } catch (err) {
+        console.error('processAIActions fatal:', err);
+        processingRef.current = false;
+        setState(prev => ({ ...prev, isProcessing: false }));
+      }
     };
 
     setState(prev => ({ ...prev, isProcessing: true }));

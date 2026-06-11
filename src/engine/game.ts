@@ -387,7 +387,9 @@ export function getWinners(state: GameState): { result: HandResult; updatedPlaye
     const eliminated = checkEliminationsOn(updatedPlayers);
     return {
       result: {
-        winners: [{ playerId: winner.id, amount: state.pot, hand: evaluateHand(winner.holeCards) }],
+        winners: [{ playerId: winner.id, amount: state.pot, hand: state.communityCards.length >= 3
+          ? evaluateHand([...winner.holeCards, ...state.communityCards])
+          : { rank: 0, kickers: [], name: '对手弃牌' } }],
         eliminatedPlayerIds: eliminated,
       },
       updatedPlayers,

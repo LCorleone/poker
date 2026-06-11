@@ -31,6 +31,7 @@ function App() {
     gtoAdvice,
     postFlopAdvice,
     humanPosition,
+    replayPlayers,
     stats,
     resetStats,
     blindInfo,
@@ -186,7 +187,7 @@ function App() {
       {showReplay && (
         <HandReplay
           actionHistory={gameState.actionHistory}
-          players={gameState.players}
+          players={replayPlayers || gameState.players}
           communityCards={gameState.communityCards}
           handResult={handResult}
           pot={gameState.pot}

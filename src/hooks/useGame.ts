@@ -5,6 +5,7 @@ import {
   GamePhase,
   DecisionFeedback,
   ActionRecord,
+  Player,
 } from '../engine/types';
 import {
   createGameState,
@@ -28,6 +29,7 @@ export interface GameHookState {
   gameState: GameState;
   feedback: DecisionFeedback | null;
   handResult: HandResult | null;
+  replayPlayers: Player[] | null; // snapshot at end of hand for replay
   lastHumanAction: GameAction | null;
   lastHumanPhase: GamePhase | null;
   isProcessing: boolean;
@@ -41,6 +43,7 @@ export function useGame() {
     gameState: createGameState(),
     feedback: null,
     handResult: null,
+    replayPlayers: null,
     lastHumanAction: null,
     lastHumanPhase: null,
     isProcessing: false,
@@ -66,10 +69,13 @@ export function useGame() {
       recordHandResult(isWinner, chipDelta);
     }
     const finalState = { ...gs, players: updatedPlayers };
+    // Save snapshot with hole cards for replay (before new hand clears them)
+    const snapshot = JSON.parse(JSON.stringify(updatedPlayers)) as Player[];
     setState(prev => ({
       ...prev,
       gameState: finalState,
       handResult: result,
+      replayPlayers: snapshot,
       isProcessing: false,
     }));
     processingRef.current = false;
@@ -170,6 +176,7 @@ export function useGame() {
       gameState: withHand,
       feedback: null,
       handResult: null,
+      replayPlayers: null,
       lastHumanAction: null,
       lastHumanPhase: null,
       isProcessing: false,
@@ -222,6 +229,7 @@ export function useGame() {
       gameState: next,
       feedback: null,
       handResult: null,
+      replayPlayers: null,
       lastHumanAction: null,
       lastHumanPhase: null,
       isProcessing: false,
@@ -297,6 +305,7 @@ export function useGame() {
     gameState: state.gameState,
     feedback: state.feedback,
     handResult: state.handResult,
+    replayPlayers: state.replayPlayers,
     isProcessing: state.isProcessing,
     isHumanTurn,
     availableActions,

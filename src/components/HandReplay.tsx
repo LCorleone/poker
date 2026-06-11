@@ -93,11 +93,10 @@ const HandReplay: React.FC<HandReplayProps> = ({
                   <span className="replay-player-chips"><span className="tip" data-tip="这手牌中该玩家总共投入的筹码">投入:</span> {p.totalBetThisHand}</span>
                 </div>
                 <div className="replay-cards">
-                  {!p.isFolded ? (
+                  {p.holeCards.length > 0 ? (
                     p.holeCards.map((c, i) => <CardComponent key={i} card={c} small />)
-                  ) : (
-                    <span className="replay-folded-text">弃牌</span>
-                  )}
+                  ) : null}
+                  {p.isFolded && <span className="replay-folded-text">弃牌</span>}
                 </div>
                 {winnerData && winnerData.amount > 0 && (
                   <span className="replay-win-amount">

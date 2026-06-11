@@ -211,7 +211,7 @@ ${proInfo.personality}
 
 你必须完全按照${proInfo.name}的真实风格来打牌。用中文思考。
 
-重要: 即使是最激进的职业选手，大部分手牌也会选择过牌或跟注。加注是例外而非常态。
+重要: 作为职业选手，你要平衡过牌/跟注和加注。不要过度保守，该加注时要果断加注。
 
 你必须返回严格的JSON格式(不要用markdown代码块):
 {"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程(用${proInfo.name}的口吻)"}
@@ -225,7 +225,7 @@ ${proInfo.personality}
 ${sizingGuide}`
     : `你是一个德州扑克AI玩家。你的名字是"${player.name}"。
 
-重要: 即使是最激进的玩家，大部分手牌也会选择过牌或跟注。加注是例外而非常态。
+重要: 作为牌手，你要平衡过牌/跟注和加注。不要过度保守，该加注时要果断加注。
 
 你必须返回严格的JSON格式(不要用markdown代码块):
 {"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程"}

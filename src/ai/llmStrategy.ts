@@ -21,11 +21,14 @@ export function resetChatHistoryForHand(handNumber: number): void {
   }
 }
 
+export type LLMStrategy = 'pro' | 'human';
+
 export interface LLMConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
   enabled: boolean;
+  strategy: LLMStrategy;
 }
 
 const LLM_CONFIG_KEY = 'poker-llm-config';
@@ -35,6 +38,7 @@ const DEFAULT_CONFIG: LLMConfig = {
   baseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
   model: 'glm-5.1',
   enabled: false,
+  strategy: 'pro',
 };
 
 export function loadLLMConfig(): LLMConfig {
@@ -123,6 +127,92 @@ function buildMessages(playerId: number, systemPrompt: string, userPrompt: strin
   return messages;
 }
 
+function buildEmotionContext(playerChips: number, handNumber: number, actionHistory: { playerId: number; action: { type: string; amount?: number } }[], playerId: number): string {
+  const startingChips = 5000;
+  const profit = playerChips - startingChips;
+  const profitStr = profit > 0 ? `+${profit}` : `${profit}`;
+
+  // Count recent results: wins/losses in last few hands
+  const myActions = actionHistory.filter(a => a.playerId === playerId);
+  const recentActions = myActions.slice(-20);
+  const bigBets = recentActions.filter(a => a.action.type === 'raise' && (a.action.amount || 0) > startingChips * 0.1).length;
+  const folds = recentActions.filter(a => a.action.type === 'fold').length;
+
+  let mood: string;
+  if (profit > startingChips * 0.5) {
+    mood = `你目前赢了很多(+${profit}筹码)，信心满满，感觉自己不可阻挡。你可能会更激进，想要利用这股气势继续赢下去。`;
+  } else if (profit > startingChips * 0.2) {
+    mood = `你目前处于盈利状态(${profitStr}筹码)，心情不错，打牌比较放松自信。`;
+  } else if (profit > -startingChips * 0.2) {
+    mood = `你目前大致持平(${profitStr}筹码)，心态平稳，正常发挥。`;
+  } else if (profit > -startingChips * 0.5) {
+    mood = `你目前亏损较多(${profitStr}筹码)，开始有些焦虑和不甘心。你会倾向于想要赢回来，可能会做出更激进的举动。`;
+  } else {
+    mood = `你目前亏损严重(${profitStr}筹码)，已经进入tilt状态！你非常沮丧和愤怒，很可能会冲动地做出不理智的决定——比如用烂牌全下，想要一把翻本。`;
+  }
+
+  // Short stack pressure
+  let stackPressure = '';
+  if (playerChips < startingChips * 0.2 && playerChips > 0) {
+    stackPressure = '\n你的筹码已经很少了， desperation(绝望)感很强——要么赶紧翻倍，要么就要被淘汰了！';
+  } else if (playerChips > startingChips * 2) {
+    stackPressure = '\n你是桌上筹码最多的玩家，这让你有底气欺压筹码少的对手。';
+  }
+
+  // Fold pressure — if folded a lot recently
+  let foldPressure = '';
+  if (folds >= 4) {
+    foldPressure = '\n你最近弃牌了很多次，感觉一直在被动挨打，很想找机会反击一下。';
+  }
+
+  return `【你当前的心理状态】
+第${handNumber}手牌 | 筹码: ${playerChips} | 盈亏: ${profitStr}
+${mood}${stackPressure}${foldPressure}`;
+}
+
+function buildHumanSystemPrompt(playerName: string, minRaise: number, maxRaise: number, emotionContext: string): string {
+  return `你是一个真实的人类扑克玩家，名叫"${playerName}"。
+
+你不是一个机器人。你有真实的人类情感和心理状态:
+- 拿到好牌会兴奋，想赢更多
+- 面对大额下注会紧张、害怕
+- 连续输牌后会变得急躁、想要翻本(tilt)
+- 被对手诈唬后会愤怒，想要报复
+- 看到对手犹豫会觉得他可能没有好牌
+- 手里筹码多时会更大胆，筹码少时会更谨慎
+
+你精通所有扑克策略，可以自由使用:
+- Bluff (诈唬) — 用弱牌下注让对手弃牌
+- Continuation Bet (C-Bet) — 翻牌前加注后翻牌继续下注
+- Check-Raise (过牌加注) — 先过牌引诱对手下注，然后加注
+- 3-Bet / 4-Bet / 5-Bet — 连续加注施压
+- Overbet for Value (超额下注) — 用超强牌下注超过底池
+- Slow Play (慢打) — 有超强牌时故意示弱
+- Float — 翻牌跟注，计划在后面街道诈唬
+- Donk Bet — 翻牌后不在位置优势时主动下注
+
+${emotionContext}
+
+你的决策应该像真人一样，考虑:
+1. 你的牌力和成牌潜力
+2. 对手可能的牌范围(根据他们的行动判断)
+3. 底池赔率是否值得跟注
+4. 你的位置优势或劣势
+5. 你的筹码量和对手的筹码量
+6. 你当前的心理状态(是否在tilt，是否自信)
+
+用中文思考。你的思考过程应该反映真实的人类心理活动。
+
+你必须返回严格的JSON格式(不要用markdown代码块):
+{"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的真实内心想法"}
+
+格式规则:
+- action只能是: fold, check, call, raise
+- raise时amount必须 ≥ ${minRaise} 且 ≤ ${maxRaise}
+- 如果可以check，不要fold
+- 下注大小应该根据你的牌力和心理状态变化，不要机械地每次下注相同比例`;
+}
+
 export async function makeLLMDecision(
   state: GameState,
   playerIndex: number,
@@ -200,8 +290,12 @@ export async function makeLLMDecision(
 - 同花/葫芦/四条+: 可以大额下注(底池的75-100%)
 - 没有成牌时，只在有明确诈唬计划时才加注`;
 
-  const systemPrompt = proInfo
-    ? `你是真实的德州扑克职业选手"${proInfo.name}"(${proInfo.title})。
+  let systemPrompt: string;
+  if (config.strategy === 'human') {
+    const emotionContext = buildEmotionContext(player.chips, state.handNumber, state.actionHistory, player.id);
+    systemPrompt = buildHumanSystemPrompt(player.name, minRaise, maxRaise, emotionContext);
+  } else if (proInfo) {
+    systemPrompt = `你是真实的德州扑克职业选手"${proInfo.name}"(${proInfo.title})。
 
 你的真实打牌风格：
 ${proInfo.style}
@@ -222,8 +316,9 @@ ${proInfo.personality}
 - 如果可以check，不要fold
 - 不要每次都加注到最大值，大多数加注应该适中
 
-${sizingGuide}`
-    : `你是一个德州扑克AI玩家。你的名字是"${player.name}"。
+${sizingGuide}`;
+  } else {
+    systemPrompt = `你是一个德州扑克AI玩家。你的名字是"${player.name}"。
 
 重要: 作为牌手，你要平衡过牌/跟注和加注。不要过度保守，该加注时要果断加注。
 
@@ -238,6 +333,7 @@ ${sizingGuide}`
 - 不要每次都加注到最大值，大多数加注应该适中
 
 ${sizingGuide}`;
+  }
 
   const userPrompt = `现在轮到你(${player.name})做决定了！
 

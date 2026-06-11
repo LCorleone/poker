@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LLMConfig, loadLLMConfig, saveLLMConfig, getLastError } from '../ai/llmStrategy';
+import { LLMConfig, LLMStrategy, loadLLMConfig, saveLLMConfig, getLastError } from '../ai/llmStrategy';
 
 interface LLMSettingsProps {
   onClose: () => void;
@@ -81,6 +81,24 @@ const LLMSettings: React.FC<LLMSettingsProps> = ({ onClose }) => {
             />
             启用LLM AI (使用大语言模型代替概率算法)
           </label>
+        </div>
+
+        <div className="llm-settings-row">
+          <label className="llm-settings-label">AI策略</label>
+          <div className="llm-strategy-toggle">
+            <button
+              className={`llm-strategy-btn ${config.strategy === 'pro' ? 'active' : ''}`}
+              onClick={() => setConfig(prev => ({ ...prev, strategy: 'pro' as LLMStrategy }))}
+            >
+              🎩 职业牌手
+            </button>
+            <button
+              className={`llm-strategy-btn ${config.strategy === 'human' ? 'active' : ''}`}
+              onClick={() => setConfig(prev => ({ ...prev, strategy: 'human' as LLMStrategy }))}
+            >
+              🧠 真人模拟
+            </button>
+          </div>
         </div>
 
         <div className="llm-settings-row">

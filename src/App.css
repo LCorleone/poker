@@ -851,7 +851,7 @@
 /* ========== Stats Panel ========== */
 .stats-toggle {
   position: fixed;
-  top: 8px;
+  top: 48px;
   right: 12px;
   z-index: 200;
   background: rgba(0, 0, 0, 0.5);
@@ -870,7 +870,7 @@
 
 .stats-panel {
   position: fixed;
-  top: 8px;
+  top: 48px;
   right: 12px;
   z-index: 200;
   background: linear-gradient(135deg, #1a1a2e, #16213e);
@@ -1009,7 +1009,7 @@
 /* ========== Hand Ranking Reference ========== */
 .handref-toggle {
   position: fixed;
-  top: 8px;
+  top: 48px;
   right: 52px;
   z-index: 200;
   background: rgba(0, 0, 0, 0.5);
@@ -1252,8 +1252,8 @@
 
 .quiz-toggle-game {
   position: fixed;
-  top: 8px;
-  right: 92px;
+  top: 48px;
+  right: 132px;
   z-index: 200;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(156, 39, 176, 0.4);
@@ -1837,8 +1837,8 @@
 /* ========== LLM Settings ========== */
 .llm-settings-toggle {
   position: fixed;
-  top: 8px;
-  right: 52px;
+  top: 48px;
+  right: 92px;
   z-index: 200;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(33, 150, 243, 0.4);
@@ -1857,8 +1857,8 @@
 /* ========== Equity Toggle & Badge ========== */
 .equity-toggle {
   position: fixed;
-  top: 8px;
-  right: 100px;
+  top: 48px;
+  right: 172px;
   z-index: 200;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(76, 175, 80, 0.4);

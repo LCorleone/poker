@@ -493,6 +493,31 @@
   accent-color: #ffd700;
 }
 
+.raise-input {
+  width: 80px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #ffd700;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.raise-input::-webkit-inner-spin-button,
+.raise-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.raise-input:focus {
+  border-color: rgba(255, 215, 0, 0.8);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.2);
+}
+
 .raise-amount {
   color: #ffd700;
   font-weight: 600;
@@ -805,6 +830,18 @@
   color: #ffd700;
   font-weight: 600;
   margin-bottom: 4px;
+}
+
+.hand-eval-badge {
+  font-size: 0.8rem;
+  color: #ffd700;
+  font-weight: 700;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  background: rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 6px;
+  text-align: center;
 }
 
 .pot-odds-grid {
@@ -1650,6 +1687,16 @@
 .replay-folded-text {
   font-size: 0.75rem;
   color: #f44336;
+}
+
+.replay-hand-result {
+  font-size: 0.75rem;
+  color: #ffd700;
+  font-weight: 600;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 4px;
 }
 
 .replay-win-amount {

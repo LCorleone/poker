@@ -32,6 +32,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
 
   if (availableActions.length === 0 || disabled) return null;
 
+  const round10 = (n: number) => Math.round(n / 10) * 10;
   const toCall = currentBet - playerCurrentBet;
 
   const handleRaise = () => {
@@ -80,24 +81,24 @@ const ActionBar: React.FC<ActionBarProps> = ({
             <div className="raise-presets">
               <button
                 className="btn-preset"
-                onClick={() => handlePresetRaise(Math.floor(currentBet + pot * 0.5))}
-                disabled={Math.floor(currentBet + pot * 0.5) > raiseRange.max}
+                onClick={() => handlePresetRaise(round10(currentBet + pot * 0.5))}
+                disabled={round10(currentBet + pot * 0.5) > raiseRange.max}
               >
-                ½底池 {Math.floor(currentBet + pot * 0.5)}
+                ½底池 {round10(currentBet + pot * 0.5)}
               </button>
               <button
                 className="btn-preset"
-                onClick={() => handlePresetRaise(Math.floor(currentBet + pot * 0.75))}
-                disabled={Math.floor(currentBet + pot * 0.75) > raiseRange.max}
+                onClick={() => handlePresetRaise(round10(currentBet + pot * 0.75))}
+                disabled={round10(currentBet + pot * 0.75) > raiseRange.max}
               >
-                ¾底池 {Math.floor(currentBet + pot * 0.75)}
+                ¾底池 {round10(currentBet + pot * 0.75)}
               </button>
               <button
                 className="btn-preset"
-                onClick={() => handlePresetRaise(currentBet + pot)}
-                disabled={currentBet + pot > raiseRange.max}
+                onClick={() => handlePresetRaise(round10(currentBet + pot))}
+                disabled={round10(currentBet + pot) > raiseRange.max}
               >
-                底池 {currentBet + pot}
+                底池 {round10(currentBet + pot)}
               </button>
               <button
                 className="btn-preset btn-preset-allin"
@@ -109,15 +110,27 @@ const ActionBar: React.FC<ActionBarProps> = ({
           )}
 
           <input
-            type="range"
+            type="number"
             min={raiseRange.min}
             max={raiseRange.max}
             value={raiseAmount}
-            onChange={e => setRaiseAmount(Number(e.target.value))}
-            className="raise-slider"
+            onChange={e => {
+              const v = Number(e.target.value);
+              if (!isNaN(v)) setRaiseAmount(v);
+            }}
+            onBlur={() => {
+              // Clamp on blur
+              const clamped = Math.min(Math.max(round10(raiseAmount), raiseRange.min), raiseRange.max);
+              setRaiseAmount(clamped);
+            }}
+            className="raise-input"
+            step={10}
           />
-          <span className="raise-amount">{raiseAmount}</span>
-          <button className="btn btn-raise" onClick={handleRaise} disabled={disabled}>
+          <button className="btn btn-raise" onClick={() => {
+            const clamped = Math.min(Math.max(round10(raiseAmount), raiseRange.min), raiseRange.max);
+            setRaiseAmount(clamped);
+            onAction({ type: 'raise', amount: clamped });
+          }} disabled={disabled}>
             加注到 {raiseAmount}
           </button>
         </div>

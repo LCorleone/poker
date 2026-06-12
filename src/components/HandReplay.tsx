@@ -2,6 +2,7 @@ import React from 'react';
 import { ActionRecord, Player, Card, GamePhase } from '../engine/types';
 import { HandResult } from '../engine/game';
 import CardComponent from './Card';
+import { evaluateHand } from '../engine/evaluate';
 
 interface HandReplayProps {
   actionHistory: ActionRecord[];
@@ -98,6 +99,11 @@ const HandReplay: React.FC<HandReplayProps> = ({
                   ) : null}
                   {p.isFolded && <span className="replay-folded-text">弃牌</span>}
                 </div>
+                {!p.isFolded && communityCards.length >= 3 && p.holeCards.length === 2 && (
+                  <span className="replay-hand-result">
+                    {evaluateHand([...p.holeCards, ...communityCards]).name}
+                  </span>
+                )}
                 {winnerData && winnerData.amount > 0 && (
                   <span className="replay-win-amount">
                     {winnerData.amount > p.totalBetThisHand ? '+' : '退回'}{winnerData.amount} ({winnerData.hand.name})

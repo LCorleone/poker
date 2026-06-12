@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card } from '../engine/types';
-import { countOuts } from '../engine/evaluate';
+import { countOuts, evaluateHand } from '../engine/evaluate';
 
 interface PotOddsDisplayProps {
   holeCards: Card[];
@@ -26,6 +26,12 @@ const PotOddsDisplay: React.FC<PotOddsDisplayProps> = ({
 
   const potOdds = pot > 0 && toCall > 0 ? toCall / (pot + toCall) : 0;
   const outs = countOuts(holeCards, communityCards);
+
+  // Current hand evaluation
+  let handName = '';
+  if (communityCards.length >= 3 && holeCards.length === 2) {
+    handName = evaluateHand([...holeCards, ...communityCards]).name;
+  }
   
   // Rule of 4 and 2 for equity from outs
   const cardsToCome = phase === 'flop' ? 2 : phase === 'turn' ? 1 : 0;
@@ -36,6 +42,9 @@ const PotOddsDisplay: React.FC<PotOddsDisplayProps> = ({
   return (
     <div className="pot-odds-panel">
       <div className="pot-odds-title">📊 底池赔率 &amp; 出牌</div>
+      {handName && (
+        <div className="hand-eval-badge">🃏 当前牌型: {handName}</div>
+      )}
       <div className="pot-odds-grid">
         <div className="pot-odds-item">
           <span className="pot-odds-label"><span className="tip" data-tip="当前底池的总金额">底池</span></span>

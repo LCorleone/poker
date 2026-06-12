@@ -41,10 +41,12 @@ const PotOddsDisplay: React.FC<PotOddsDisplayProps> = ({
 
   return (
     <div className="pot-odds-panel">
-      <div className="pot-odds-title">📊 底池赔率 &amp; 出牌</div>
-      {handName && (
-        <div className="hand-eval-badge">🃏 当前牌型: {handName}</div>
-      )}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div className="pot-odds-title">📊 底池赔率 &amp; 出牌</div>
+        {handName && (
+          <div className="hand-eval-badge">🃏 {handName}</div>
+        )}
+      </div>
       <div className="pot-odds-grid">
         <div className="pot-odds-item">
           <span className="pot-odds-label"><span className="tip" data-tip="当前底池的总金额">底池</span></span>

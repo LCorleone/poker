@@ -98,6 +98,14 @@ export function useCompetition() {
   const saveIdRef = useRef<string | null>(null);
   const winnerIdRef = useRef<string | null>(null);
   const modelFailureRef = useRef<ModelFailure | null>(null);
+  // Generation counter: bumped whenever the session identity changes (init/load)
+  // or a fresh play starts. Stale setTimeout closures capture a generation and
+  // bail if it no longer matches — prevents a result-window timeout from a
+  // previous competition firing against a new one.
+  const playGenRef = useRef(0);
+  // Handle of the in-flight result-window timer (the 10s hold before the next
+  // hand). Cleared on pause so a pause→play during the window resumes immediately.
+  const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -279,7 +287,11 @@ export function useCompetition() {
           // Otherwise: hold the result visible for a moment so the spectator
           // can see who won, then deal the next hand and keep going.
           // finalState + handResult (set by finishHand) stay on screen during the delay.
-          setTimeout(() => {
+          const gen = playGenRef.current;
+          resultTimerRef.current = setTimeout(() => {
+            resultTimerRef.current = null;
+            // Stale timer from a prior session/play — bail without touching state.
+            if (gen !== playGenRef.current) return;
             // The user may have paused, or a failure occurred, during the delay.
             if (!runningRef.current || modelFailureRef.current) {
               processingRef.current = false;
@@ -370,6 +382,13 @@ export function useCompetition() {
     clearTableChats();
     clearChatHistory();
 
+    // New session: invalidate any pending result-window timer from a prior game.
+    playGenRef.current++;
+    if (resultTimerRef.current) {
+      clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
+    }
+
     const gs = createCompetitionGameState(competitors.map(c => c.name), config);
 
     // Attach pro personas. Competition players have no proInfo by default, so a
@@ -441,6 +460,15 @@ export function useCompetition() {
   /** Pause the autoplay loop. The in-flight call finishes gracefully. */
   const pause = () => {
     runningRef.current = false;
+    // Cancel the in-flight result-window timer so a pause→play during the
+    // window resumes immediately instead of waiting up to 10s for the timer
+    // to bail. The timer's own callback re-checks runningRef, so even if a
+    // stale reference fires it will no-op.
+    if (resultTimerRef.current) {
+      clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
+    }
+    processingRef.current = false;
     setState(prev => ({ ...prev, isRunning: false }));
   };
 
@@ -515,6 +543,12 @@ export function useCompetition() {
     saveIdRef.current = save.id;
     winnerIdRef.current = save.winnerId ?? null;
     modelFailureRef.current = null;
+    // New session: invalidate any pending result-window timer from a prior game.
+    playGenRef.current++;
+    if (resultTimerRef.current) {
+      clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
+    }
     pauseAfterHandRef.current = false;
     processingRef.current = false;
     runningRef.current = false;

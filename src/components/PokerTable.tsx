@@ -9,6 +9,7 @@ interface PokerTableProps {
   gameState: GameState;
   handResult: HandResult | null;
   showEquity: boolean;
+  revealCards?: boolean;
 }
 
 // Seat positions around the table (top, left, right, bottom-left, bottom)
@@ -23,7 +24,7 @@ const SEAT_POSITIONS = [
   'seat-bottom-left', // 6th player (competition only) - bottom left
 ];
 
-const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEquity }) => {
+const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEquity, revealCards }) => {
   const { players, communityCards, pot, phase, dealerIndex, currentPlayerIndex } = gameState;
 
   // Calculate exact equity when toggled on
@@ -112,7 +113,12 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
           const isWinner = winnerIds.has(player.id);
           const winnerData = handResult?.winners.find(w => w.playerId === player.id);
           let handName: string | undefined;
-          if (isShowdown && !player.isFolded && !player.isEliminated && player.holeCards.length > 0) {
+          if (
+            (revealCards || isShowdown) &&
+            !player.isEliminated &&
+            player.holeCards.length > 0 &&
+            communityCards.length >= 3
+          ) {
             const hand = evaluateHand([...player.holeCards, ...communityCards]);
             handName = hand.name;
           }
@@ -125,7 +131,7 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
                 isSmallBlind={player.seatIndex === sbSeatIndex}
                 isBigBlind={player.seatIndex === bbSeatIndex}
                 isCurrentTurn={currentPlayerIndex === i}
-                showCards={isShowdown && !player.isFolded}
+                showCards={revealCards || (isShowdown && !player.isFolded)}
                 isHuman={player.isHuman}
                 isWinner={isWinner}
                 handName={handName}

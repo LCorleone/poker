@@ -16,6 +16,7 @@ interface CompetitionArenaProps {
 
 const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit }) => {
   const [savedFlash, setSavedFlash] = useState(false);
+  const [revealCards, setRevealCards] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const {
@@ -87,7 +88,7 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
       {/* Main: table + leaderboard */}
       <div className="comp-arena-main">
         <div className="comp-arena-table">
-          <PokerTable gameState={gameState} handResult={handResult} showEquity={false} />
+          <PokerTable gameState={gameState} handResult={handResult} showEquity={false} revealCards={revealCards} />
 
           <div className="comp-controls">
             {isFinished ? (
@@ -113,6 +114,14 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
               />
               <span>暂停查看每手结果</span>
             </label>
+
+            <button
+              className={`btn btn-comp-reveal${revealCards ? ' active' : ''}`}
+              onClick={() => setRevealCards(v => !v)}
+              title="显示/隐藏所有玩家手牌"
+            >
+              {revealCards ? '🃏 隐藏手牌' : '🃏 显示手牌'}
+            </button>
 
             {handJustFinished && (
               <button className="btn btn-comp-next" onClick={dealNextHand}>
@@ -208,7 +217,7 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
         />
       )}
 
-      <ChatPanel chats={chatMessages} />
+      <ChatPanel chats={chatMessages} className="chat-panel-left" />
     </div>
   );
 };

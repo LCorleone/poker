@@ -2145,6 +2145,11 @@
   overflow: hidden;
 }
 
+.chat-panel.chat-panel-left {
+  right: auto;
+  left: 12px;
+}
+
 .chat-header {
   padding: 8px 12px;
   font-size: 0.85rem;
@@ -2439,6 +2444,11 @@
     width: 180px;
     max-height: 150px;
     bottom: 4px;
+  }
+
+  .chat-panel.chat-panel-left {
+    right: auto;
+    left: 8px;
   }
 
   /* Stats & reference buttons */
@@ -2887,6 +2897,24 @@
 .btn-comp-exit:hover {
   background: rgba(244, 67, 54, 0.4);
   color: #fff;
+}
+
+.btn-comp-reveal {
+  background: rgba(156, 39, 176, 0.2);
+  border: 1px solid rgba(156, 39, 176, 0.4);
+  color: #ce93d8;
+  padding: 8px 18px;
+  border-radius: 8px;
+}
+
+.btn-comp-reveal:hover {
+  background: rgba(156, 39, 176, 0.3);
+}
+
+.btn-comp-reveal.active {
+  background: rgba(156, 39, 176, 0.4);
+  border-color: rgba(206, 147, 216, 0.8);
+  color: #f3e5f5;
 }
 
 /* ---------- Leaderboard ---------- */

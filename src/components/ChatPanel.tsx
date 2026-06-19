@@ -4,9 +4,10 @@ import { ChatMessage } from '../ai/llmStrategy';
 interface ChatPanelProps {
   chats: ChatMessage[];
   onSend?: (message: string) => void;
+  className?: string;
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ chats, onSend }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ chats, onSend, className }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -31,7 +32,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ chats, onSend }) => {
   };
 
   return (
-    <div className="chat-panel">
+    <div className={`chat-panel${className ? ` ${className}` : ''}`}>
       <div className="chat-header">💬 牌桌聊天</div>
       <div className="chat-messages">
         {chats.length === 0 && (

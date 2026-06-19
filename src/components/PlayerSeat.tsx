@@ -14,6 +14,7 @@ interface PlayerSeatProps {
   isWinner: boolean;
   handName?: string;
   lastThought?: string;
+  lastAction?: string;
   equity?: number;
 }
 
@@ -28,6 +29,7 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
   isWinner,
   handName,
   lastThought,
+  lastAction,
   equity,
 }) => {
   if (player.isEliminated) {
@@ -67,6 +69,9 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
       )}
       {player.currentBet > 0 && (
         <div className="player-bet"><span className="tip" data-tip="本轮下注的金额">下注:</span> {player.currentBet}</div>
+      )}
+      {lastAction === 'check' && player.currentBet === 0 && !player.isFolded && (
+        <div className="player-bet check-badge">过牌</div>
       )}
       {player.isFolded && <div className="folded-overlay">弃牌</div>}
       {/* Show evaluated hand name + win probability when cards are visible */}

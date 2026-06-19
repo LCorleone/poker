@@ -315,6 +315,13 @@
   border-radius: 8px;
 }
 
+.player-bet.check-badge {
+  color: #90caf9;
+  background: rgba(144, 202, 249, 0.15);
+  display: inline-block;
+  width: fit-content;
+}
+
 .dealer-btn {
   position: absolute;
   top: -8px;
@@ -2924,6 +2931,34 @@
   background: rgba(156, 39, 176, 0.4);
   border-color: rgba(206, 147, 216, 0.8);
   color: #f3e5f5;
+}
+
+/* ---------- Result banner (continuous autoplay) ---------- */
+.comp-result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px auto;
+  padding: 8px 16px;
+  max-width: 700px;
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.5);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #a5d6a7;
+  text-align: center;
+  flex-wrap: wrap;
+}
+
+.comp-result-icon {
+  font-size: 1.1rem;
+}
+
+.comp-result-text {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ---------- Leaderboard ---------- */

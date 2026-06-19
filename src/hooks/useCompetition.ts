@@ -65,6 +65,9 @@ export interface CompetitionHookState {
 
 const DEFAULT_CONFIG: CompetitionConfig = { startingChips: 5000, handsPerLevel: 10 };
 
+// How long the finished-hand result stays visible before the next hand auto-deals.
+const RESULT_DISPLAY_MS = 10000;
+
 function initialEmptyState(): CompetitionHookState {
   return {
     gameState: createCompetitionGameState([], DEFAULT_CONFIG),
@@ -273,10 +276,19 @@ export function useCompetition() {
             return;
           }
 
-          // Otherwise deal the next hand and keep going
-          const nextGs = startNewHand(finalState);
-          setState(prev => ({ ...prev, gameState: nextGs, handResult: null, replayPlayers: null }));
-          setTimeout(() => run(nextGs), 800);
+          // Otherwise: hold the result visible for a moment so the spectator
+          // can see who won, then deal the next hand and keep going.
+          // finalState + handResult (set by finishHand) stay on screen during the delay.
+          setTimeout(() => {
+            // The user may have paused, or a failure occurred, during the delay.
+            if (!runningRef.current || modelFailureRef.current) {
+              processingRef.current = false;
+              return;
+            }
+            const nextGs = startNewHand(finalState);
+            setState(prev => ({ ...prev, gameState: nextGs, handResult: null, replayPlayers: null }));
+            setTimeout(() => run(nextGs), 600);
+          }, RESULT_DISPLAY_MS);
           return;
         }
 

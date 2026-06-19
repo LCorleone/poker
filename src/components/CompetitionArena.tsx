@@ -74,6 +74,20 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
   const handJustFinished =
     !!handResult && !isRunning && !isFinished && pauseAfterHand;
 
+  // True while a finished hand's result is on screen and the competition is
+  // still going. Covers BOTH the pause-after-hand window AND the continuous
+  // 10s result window (where isRunning may still be true).
+  const resultWindow =
+    !!handResult && gameState.isHandComplete && !isFinished;
+
+  const winnerText = handResult?.winners
+    .map(w => {
+      const player = gameState.players[w.playerId];
+      const name = player?.name ?? `#${w.playerId}`;
+      return `${name} +${w.amount}（${w.hand.name}）`;
+    })
+    .join('、') ?? '';
+
   return (
     <div className="comp-arena">
       {/* Header */}
@@ -88,7 +102,19 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
       {/* Main: table + leaderboard */}
       <div className="comp-arena-main">
         <div className="comp-arena-table">
-          <PokerTable gameState={gameState} handResult={handResult} showEquity={revealCards} revealCards={revealCards} />
+          <PokerTable
+            gameState={gameState}
+            handResult={handResult}
+            showEquity={revealCards || resultWindow}
+            revealCards={revealCards || resultWindow}
+          />
+
+          {resultWindow && (
+            <div className="comp-result-banner">
+              <span className="comp-result-icon">🏆</span>
+              <span className="comp-result-text">{winnerText}</span>
+            </div>
+          )}
 
           <div className="comp-controls">
             {isFinished ? (

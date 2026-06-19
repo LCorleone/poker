@@ -76,6 +76,17 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
     }
   }
 
+  // Extract last action for each player in the CURRENT betting round.
+  // (Phase-scoped so a check doesn't linger after the round advances.)
+  // Call/raise already show via "下注: X"; fold shows via "弃牌"; only
+  // check has no chip movement and needs an explicit "过牌" badge.
+  const lastActions: Record<number, string> = {};
+  for (const record of gameState.actionHistory) {
+    if (record.phase === phase) {
+      lastActions[record.playerId] = record.action.type;
+    }
+  }
+
   const winnerIds = new Set(handResult?.winners.map((w: { playerId: number }) => w.playerId) ?? []);
 
   return (
@@ -136,6 +147,7 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
                 isWinner={isWinner}
                 handName={handName}
                 lastThought={lastThoughts[player.id]}
+                lastAction={lastActions[player.id]}
                 equity={showEquity && !player.isFolded && !player.isEliminated ? equityMap.get(player.id) : undefined}
               />
             </div>

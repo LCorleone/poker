@@ -23,7 +23,7 @@ import {
 } from '../engine/game';
 import { evaluateHand } from '../engine/evaluate';
 import { makeAIDecision } from '../ai/strategy';
-import { makeLLMDecision, loadLLMConfig, updatePlayerMemory, resetPlayerMemories, clearTableChats } from '../ai/llmStrategy';
+import { makeLLMDecision, loadLLMConfig, updatePlayerMemory, resetPlayerMemories, clearTableChats, clearChatHistory } from '../ai/llmStrategy';
 import { getGTOAdvice, calculatePosition, getPostFlopAdvice, GTOAdvice, Position, PostFlopAdvice } from '../engine/gto';
 import { useStats } from './useStats';
 
@@ -212,6 +212,7 @@ export function useGame() {
   const startGame = useCallback(() => {
     resetPlayerMemories();
     clearTableChats();
+    clearChatHistory();
     const gs = createGameState();
     const withHand = startNewHand(gs);
     setState(prev => ({

@@ -33,6 +33,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
   if (availableActions.length === 0 || disabled) return null;
 
   const round10 = (n: number) => Math.round(n / 10) * 10;
+  const clampedRaiseAmount = Math.min(Math.max(round10(raiseAmount), raiseRange.min), raiseRange.max);
   const toCall = currentBet - playerCurrentBet;
 
   const handleRaise = () => {
@@ -127,11 +128,10 @@ const ActionBar: React.FC<ActionBarProps> = ({
             step={10}
           />
           <button className="btn btn-raise" onClick={() => {
-            const clamped = Math.min(Math.max(round10(raiseAmount), raiseRange.min), raiseRange.max);
-            setRaiseAmount(clamped);
-            onAction({ type: 'raise', amount: clamped });
+            setRaiseAmount(clampedRaiseAmount);
+            onAction({ type: 'raise', amount: clampedRaiseAmount });
           }} disabled={disabled}>
-            加注到 {raiseAmount}
+            加注到 {clampedRaiseAmount}
           </button>
         </div>
       )}

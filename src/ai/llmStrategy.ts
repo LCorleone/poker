@@ -570,7 +570,7 @@ ${buildActionSummary(state)}
       },
       body: JSON.stringify({
         model: config.model,
-        messages: buildMessages(player.id, systemPrompt, userPrompt),
+        messages,
         temperature: 0.8,
         max_tokens: 4096,
       }),
@@ -603,19 +603,37 @@ ${buildActionSummary(state)}
       }
     }
 
-    // Parse JSON from response (handle markdown code blocks)
-    const jsonMatch = content.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/);
-    if (!jsonMatch) {
-      console.error('LLM response not JSON:', content);
-      lastError = `Not JSON: ${content.slice(0, 100)}`;
-      return fallbackDecision(state, playerIndex);
+    // Parse JSON from response (try direct parse first, then extract {...} block)
+    let parsed: any;
+    try {
+      // Strip markdown code fences then parse directly (most reliable)
+      const cleaned = content.replace(/```json\s*|```/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      // Fall back to extracting the substring from first { to last }
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('LLM response not JSON:', content);
+        lastError = `Not JSON: ${content.slice(0, 100)}`;
+        return fallbackDecision(state, playerIndex);
+      }
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        console.error('LLM response JSON parse failed:', content);
+        lastError = `JSON parse failed: ${content.slice(0, 100)}`;
+        return fallbackDecision(state, playerIndex);
+      }
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
     const action: GameAction = { type: parsed.action };
-    if (parsed.action === 'raise' && parsed.amount) {
-      // Hard cap: protect against all-in unless truly intended
-      const clampedAmount = Math.floor(Math.min(parsed.amount, maxRaise));
+    if (parsed.action === 'raise') {
+      const amt = Number(parsed.amount);
+      if (!Number.isFinite(amt)) {
+        // Non-numeric amount: fall back rather than NaN-corrupt the chip stack
+        return fallbackDecision(state, playerIndex);
+      }
+      const clampedAmount = Math.floor(Math.min(amt, maxRaise));
       action.amount = Math.max(minRaise, clampedAmount);
     }
 
@@ -629,6 +647,9 @@ ${buildActionSummary(state)}
     if (action.type === 'raise' && (!action.amount || action.amount < minRaise)) {
       action.amount = minRaise;
     }
+
+    // Success: clear any previous error
+    lastError = null;
 
     // Save this exchange to chat history
     const history = chatHistories.get(player.id) || [];

@@ -30,7 +30,10 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
   }, [showEquity, players, communityCards]);
 
   // Calculate SB and BB seat indices (persist for entire hand regardless of fold)
+  const activeCount = players.filter(p => !p.isEliminated).length;
   const sbSeatIndex = (() => {
+    // Heads-up: dealer is the small blind
+    if (activeCount === 2) return players[dealerIndex].seatIndex;
     const n = players.length;
     for (let i = 1; i <= n; i++) {
       const idx = (dealerIndex + i) % n;
@@ -41,6 +44,14 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
 
   const bbSeatIndex = (() => {
     const n = players.length;
+    // Heads-up: BB is the non-dealer player
+    if (activeCount === 2) {
+      for (let i = 1; i <= n; i++) {
+        const idx = (dealerIndex + i) % n;
+        if (!players[idx].isEliminated) return players[idx].seatIndex;
+      }
+      return -1;
+    }
     let foundSB = false;
     for (let i = 1; i <= n; i++) {
       const idx = (dealerIndex + i) % n;

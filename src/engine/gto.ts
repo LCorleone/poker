@@ -142,6 +142,12 @@ export function calculatePosition(
     }
   }
 
+  // Heads-up special case: dealer is the small blind, the other player is big blind
+  if (activeSeats.length === 2) {
+    if (playerSeatIndex === activeSeats[0]) return 'SB';
+    return 'BB';
+  }
+
   const posOrder: Position[] = ['BTN', 'SB', 'BB', 'UTG', 'MP', 'CO'];
 
   // Map active seats to positions

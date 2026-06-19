@@ -141,7 +141,7 @@ export function startNewHand(state: GameState): GameState {
 
   // Advance blind level
   s.handNumber = state.handNumber + 1;
-  const newLevel = Math.min(Math.floor(s.handNumber / s.handsPerLevel), BLIND_SCHEDULE.length - 1);
+  const newLevel = Math.min(Math.floor((s.handNumber - 1) / s.handsPerLevel), BLIND_SCHEDULE.length - 1);
   s.blindLevel = newLevel;
   s.smallBlind = BLIND_SCHEDULE[newLevel].small;
   s.bigBlind = BLIND_SCHEDULE[newLevel].big;
@@ -263,7 +263,10 @@ export function performAction(state: GameState, action: GameAction): GameState {
       player.totalBetThisHand += actualAdd;
       s.pot += actualAdd;
 
-      s.minRaise = raiseTotal - s.currentBet;
+      // Only a full raise (>= min raise) updates minRaise; a short all-in does not
+      if (raiseTotal - s.currentBet >= s.minRaise) {
+        s.minRaise = raiseTotal - s.currentBet;
+      }
       s.currentBet = player.currentBet;
       s.lastAggressorIndex = s.currentPlayerIndex;
 
@@ -489,8 +492,14 @@ export function getAvailableActions(state: GameState): GameAction[] {
 
   // Can raise if they have chips beyond the call amount
   const minRaiseTotal = state.currentBet + state.minRaise;
-  if (player.chips > toCall && minRaiseTotal <= player.chips + player.currentBet) {
-    actions.push({ type: 'raise', amount: minRaiseTotal });
+  if (player.chips > toCall) {
+    const allInTotal = player.currentBet + player.chips;
+    if (minRaiseTotal <= player.chips + player.currentBet) {
+      actions.push({ type: 'raise', amount: minRaiseTotal });
+    } else {
+      // Short stack: can't make a full min-raise, but can shove all-in
+      actions.push({ type: 'raise', amount: allInTotal });
+    }
   }
 
   return actions;

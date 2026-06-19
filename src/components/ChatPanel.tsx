@@ -3,7 +3,7 @@ import { ChatMessage } from '../ai/llmStrategy';
 
 interface ChatPanelProps {
   chats: ChatMessage[];
-  onSend: (message: string) => void;
+  onSend?: (message: string) => void;
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ chats, onSend }) => {
@@ -17,7 +17,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ chats, onSend }) => {
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text) return;
+    if (!text || !onSend) return;
     onSend(text);
     setInput('');
     inputRef.current?.focus();
@@ -45,19 +45,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ chats, onSend }) => {
         ))}
         <div ref={bottomRef} />
       </div>
-      <div className="chat-input-row">
-        <input
-          ref={inputRef}
-          className="chat-input"
-          type="text"
-          placeholder="说点什么..."
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          maxLength={100}
-        />
-        <button className="chat-send-btn" onClick={handleSend}>发送</button>
-      </div>
+      {onSend && (
+        <div className="chat-input-row">
+          <input
+            ref={inputRef}
+            className="chat-input"
+            type="text"
+            placeholder="说点什么..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            maxLength={100}
+          />
+          <button className="chat-send-btn" onClick={handleSend}>发送</button>
+        </div>
+      )}
     </div>
   );
 };

@@ -81,6 +81,62 @@ export function createGameState(): GameState {
   };
 }
 
+// ===================== Competition Mode (AI vs AI, no human) =====================
+
+export interface CompetitionConfig {
+  startingChips: number;
+  handsPerLevel: number;
+}
+
+/**
+ * Create a game state for an AI-only competition.
+ * - No human player (all isHuman: false)
+ * - Players named after the supplied names, seated in order (seatIndex = index)
+ * - Player at index i maps 1:1 to competitors[i] (stable even after elimination,
+ *   since eliminated players stay in the array)
+ * - Configurable starting chips and hands-per-blind-level
+ * Returns a 'waiting' state; the caller invokes startNewHand() to begin.
+ */
+export function createCompetitionGameState(
+  competitorNames: string[],
+  config: CompetitionConfig,
+): GameState {
+  const players: Player[] = competitorNames.map((name, i) => ({
+    id: i,
+    name,
+    chips: config.startingChips,
+    holeCards: [],
+    isFolded: false,
+    isAllIn: false,
+    currentBet: 0,
+    totalBetThisHand: 0,
+    isHuman: false,
+    isEliminated: false,
+    seatIndex: i,
+  }));
+
+  return {
+    players,
+    communityCards: [],
+    pot: 0,
+    phase: 'waiting',
+    dealerIndex: 0,
+    currentPlayerIndex: -1,
+    smallBlind: SMALL_BLIND,
+    bigBlind: BIG_BLIND,
+    currentBet: 0,
+    minRaise: BIG_BLIND,
+    deck: [],
+    isHandComplete: false,
+    actionHistory: [],
+    actedThisRound: new Set(),
+    lastAggressorIndex: -1,
+    handNumber: 0,
+    blindLevel: 0,
+    handsPerLevel: config.handsPerLevel,
+  };
+}
+
 // Get active (non-folded, non-eliminated) players
 function activePlayers(state: GameState): Player[] {
   return state.players.filter(p => !p.isFolded && !p.isEliminated);

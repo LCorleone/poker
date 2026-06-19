@@ -12,12 +12,15 @@ interface PokerTableProps {
 }
 
 // Seat positions around the table (top, left, right, bottom-left, bottom)
+// NOTE: index 5 is competition-only (6th player). The 5-player trainer uses
+// indices 0-4 only, so appending (not reordering) keeps the trainer intact.
 const SEAT_POSITIONS = [
   'seat-bottom',   // Player (你) - bottom center
   'seat-left',     // 小明 - left
   'seat-top-left', // 小红 - top left
   'seat-top-right',// 老王 - top right
   'seat-right',    // 阿强 - right
+  'seat-bottom-left', // 6th player (competition only) - bottom left
 ];
 
 const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEquity }) => {

@@ -19,7 +19,28 @@ import LLMSettings from './components/LLMSettings';
 import ChatPanel from './components/ChatPanel';
 import { ChatMessage, getTableChats, clearTableChats, addPlayerChat } from './ai/llmStrategy';
 
+import CompetitionSetup from './components/CompetitionSetup';
+import CompetitionSaves from './components/CompetitionSaves';
+import CompetitionArena from './components/CompetitionArena';
+import { useCompetition } from './hooks/useCompetition';
+import { Competitor, CompetitionSave } from './ai/competitionStore';
+
+type Mode =
+  | 'select'
+  | 'trainer'
+  | 'competition-setup'
+  | 'competition-saves'
+  | 'competition-arena';
+
+interface CompetitionConfig {
+  startingChips: number;
+  handsPerLevel: number;
+}
+
 function App() {
+  const [mode, setMode] = React.useState<Mode>('select');
+  const competition = useCompetition();
+
   const {
     gameState,
     feedback,
@@ -55,6 +76,55 @@ function App() {
   React.useEffect(() => {
     setChatMessages(getTableChats());
   }, [gameState, handResult]);
+
+  // ----- Competition wiring -----
+  const handleCompetitionStart = (
+    competitors: Competitor[],
+    config: CompetitionConfig,
+    saveName: string,
+  ) => {
+    competition.init(competitors, config, saveName);
+    setMode('competition-arena');
+  };
+
+  const handleCompetitionResume = (save: CompetitionSave) => {
+    competition.load(save);
+    setMode('competition-arena');
+  };
+
+  // ----- Mode router: non-trainer modes render here and return early -----
+  if (mode === 'select') {
+    return <ModeSelect onSelect={setMode} />;
+  }
+
+  if (mode === 'competition-setup') {
+    return (
+      <CompetitionSetup
+        onStart={handleCompetitionStart}
+        onCancel={() => setMode('select')}
+      />
+    );
+  }
+
+  if (mode === 'competition-saves') {
+    return (
+      <CompetitionSaves
+        onBack={() => setMode('select')}
+        onResume={handleCompetitionResume}
+      />
+    );
+  }
+
+  if (mode === 'competition-arena') {
+    return (
+      <CompetitionArena
+        competition={competition}
+        onExit={() => { competition.pause(); setMode('select'); }}
+      />
+    );
+  }
+
+  // ----- Trainer mode (existing logic, intact below) -----
 
   if (showTutorial) {
     return (
@@ -235,5 +305,50 @@ function App() {
     </div>
   );
 }
+
+const ModeSelect: React.FC<{ onSelect: (mode: Mode) => void }> = ({ onSelect }) => {
+  return (
+    <div className="app">
+      <div className="mode-select">
+        <h1 className="mode-select-title">🃏 德州扑克</h1>
+        <p className="mode-select-subtitle">选择模式</p>
+        <div className="mode-select-cards">
+          <div className="mode-select-card">
+            <div className="mode-select-card-icon">🎓</div>
+            <div className="mode-select-card-name">训练模式</div>
+            <div className="mode-select-card-desc">与AI对战，学习扑克技巧</div>
+            <button
+              className="btn btn-mode-enter"
+              onClick={() => onSelect('trainer')}
+            >
+              进入
+            </button>
+          </div>
+
+          <div className="mode-select-card">
+            <div className="mode-select-card-icon">⚔️</div>
+            <div className="mode-select-card-name">AI对战</div>
+            <div className="mode-select-card-desc">观看AI模型互相竞争</div>
+            <div className="mode-select-card-actions">
+              <button
+                className="btn btn-mode-enter"
+                onClick={() => onSelect('competition-setup')}
+              >
+                🆕 新建对战
+              </button>
+              <button
+                className="btn btn-mode-secondary"
+                onClick={() => onSelect('competition-saves')}
+              >
+                📂 载入存档
+              </button>
+            </div>
+          </div>
+        </div>
+        <p className="mode-select-footer">提示：对战进度会自动保存到本地</p>
+      </div>
+    </div>
+  );
+};
 
 export default App;

@@ -1,0 +1,216 @@
+import React, { useState } from 'react';
+import PokerTable from './PokerTable';
+import ModelFailDialog from './ModelFailDialog';
+import ChatPanel from './ChatPanel';
+import { ChatMessage, getTableChats } from '../ai/llmStrategy';
+import { useCompetition } from '../hooks/useCompetition';
+
+// Use the hook's full return type so any future fields Just Work.
+// `typeof` is a type-only usage, so TypeScript elides the runtime import.
+type CompetitionApi = ReturnType<typeof useCompetition>;
+
+interface CompetitionArenaProps {
+  competition: CompetitionApi;
+  onExit: () => void;
+}
+
+const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit }) => {
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  const {
+    gameState,
+    handResult,
+    competitors,
+    leaderboard,
+    saveName,
+    config,
+    isRunning,
+    pauseAfterHand,
+    isFinished,
+    winnerId,
+    modelFailure,
+    blindInfo,
+    play,
+    pause,
+    setPauseAfterHand,
+    dealNextHand,
+    manualSave,
+    updateCompetitorConfig,
+  } = competition;
+
+  React.useEffect(() => {
+    setChatMessages(getTableChats());
+  }, [gameState, handResult]);
+
+  const handleSave = () => {
+    manualSave();
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 1500);
+  };
+
+  // ---- Leaderboard (sorted by chips desc) ----
+  const sortedEntries = leaderboard
+    .map((entry, i) => ({
+      entry,
+      name: competitors[i]?.name ?? `#${i}`,
+      model: competitors[i]?.llm.model ?? '',
+      isEliminated: gameState.players[i]?.isEliminated ?? entry.chips <= 0,
+    }))
+    .sort((a, b) => b.entry.chips - a.entry.chips);
+
+  const leaderId = sortedEntries[0]?.entry.competitorId ?? null;
+
+  // ---- Finished overlay winner lookup ----
+  const winner = winnerId ? competitors.find(c => c.id === winnerId) : null;
+  const winnerChips = (() => {
+    if (!winnerId) return 0;
+    const idx = competitors.findIndex(c => c.id === winnerId);
+    if (idx < 0) return 0;
+    return gameState.players[idx]?.chips ?? leaderboard[idx]?.chips ?? 0;
+  })();
+
+  const handJustFinished =
+    !!handResult && !isRunning && !isFinished && pauseAfterHand;
+
+  return (
+    <div className="comp-arena">
+      {/* Header */}
+      <header className="comp-arena-header">
+        <h1>⚔️ AI对战</h1>
+        <span className="comp-save-name">{saveName || '未命名对战'}</span>
+        <span className="comp-hand-info">
+          第{gameState.handNumber}手 · 盲注 {blindInfo.small}/{blindInfo.big} · 级别 {blindInfo.level}/{blindInfo.totalLevels}
+        </span>
+      </header>
+
+      {/* Main: table + leaderboard */}
+      <div className="comp-arena-main">
+        <div className="comp-arena-table">
+          <PokerTable gameState={gameState} handResult={handResult} showEquity={false} />
+
+          <div className="comp-controls">
+            {isFinished ? (
+              <button className="btn btn-comp-play" disabled>
+                🏁 已结束
+              </button>
+            ) : isRunning ? (
+              <button className="btn btn-comp-pause" onClick={pause}>
+                ⏸ 暂停
+              </button>
+            ) : (
+              <button className="btn btn-comp-play" onClick={play}>
+                ▶ {gameState.handNumber > 0 ? '继续' : '开始'}
+              </button>
+            )}
+
+            <label className="comp-toggle">
+              <input
+                type="checkbox"
+                checked={pauseAfterHand}
+                onChange={e => setPauseAfterHand(e.target.checked)}
+                disabled={isFinished}
+              />
+              <span>暂停查看每手结果</span>
+            </label>
+
+            {handJustFinished && (
+              <button className="btn btn-comp-next" onClick={dealNextHand}>
+                🔄 下一手
+              </button>
+            )}
+
+            <button
+              className="btn btn-comp-save"
+              onClick={handleSave}
+            >
+              {savedFlash ? '✅ 已保存!' : '💾 保存'}
+            </button>
+
+            <button className="btn btn-comp-exit" onClick={onExit}>
+              🚪 退出
+            </button>
+          </div>
+        </div>
+
+        <aside className="comp-leaderboard">
+          <h3 className="comp-leaderboard-title">🏆 排行榜</h3>
+          <div className="comp-leaderboard-list">
+            {sortedEntries.length === 0 && (
+              <div className="comp-leaderboard-empty">暂无数据</div>
+            )}
+            {sortedEntries.map((row, idx) => (
+              <div
+                key={row.entry.competitorId}
+                className={`comp-leaderboard-entry${row.isEliminated ? ' eliminated' : ''}${
+                  row.entry.competitorId === leaderId ? ' leader' : ''
+                }`}
+              >
+                <div className="comp-leaderboard-rank">
+                  {row.entry.competitorId === leaderId && !row.isEliminated ? '🥇' : `#${idx + 1}`}
+                </div>
+                <div className="comp-leaderboard-main">
+                  <div className="comp-leaderboard-name">
+                    {row.name}
+                    {row.isEliminated && <span className="comp-leaderboard-out"> 已淘汰</span>}
+                  </div>
+                  <div className="comp-leaderboard-model">{row.model}</div>
+                  <div className="comp-leaderboard-stats">
+                    <span className="comp-leaderboard-chips">💰 {row.entry.chips}</span>
+                    <span className="comp-leaderboard-wins">🏆 {row.entry.wins}</span>
+                    <span className="comp-leaderboard-hands">🎯 {row.entry.handsPlayed}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="comp-leaderboard-footer">
+            起始筹码 {config.startingChips} · 每级 {config.handsPerLevel} 手
+          </div>
+        </aside>
+      </div>
+
+      {/* Finished overlay */}
+      {isFinished && (
+        <div className="comp-finish-overlay">
+          <div className="comp-finish-panel">
+            <h2>🏁 对战结束！</h2>
+            <p className="comp-finish-winner">
+              冠军：<strong>{winner?.name ?? '—'}</strong>
+            </p>
+            <p className="comp-finish-chips">最终筹码：{winnerChips}</p>
+            <div className="comp-finish-actions">
+              <button className="btn btn-comp-save" onClick={handleSave}>
+                {savedFlash ? '✅ 已保存!' : '💾 保存'}
+              </button>
+              <button className="btn btn-comp-exit" onClick={onExit}>
+                🚪 退出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Model failure dialog */}
+      {modelFailure && (
+        <ModelFailDialog
+          failure={modelFailure}
+          competitorLlm={competitors.find(c => c.id === modelFailure.competitorId)?.llm}
+          onRetry={() => play()}
+          onEditSave={(newLlm) => {
+            updateCompetitorConfig(modelFailure.competitorId, newLlm);
+            play();
+          }}
+          onAbandon={() => {
+            pause();
+            onExit();
+          }}
+        />
+      )}
+
+      <ChatPanel chats={chatMessages} />
+    </div>
+  );
+};
+
+export default CompetitionArena;

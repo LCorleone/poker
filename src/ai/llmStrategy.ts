@@ -60,7 +60,7 @@ export function resetChatHistoryForHand(handNumber: number): void {
 
 // ===================== Cross-hand Memory =====================
 
-interface PlayerMemory {
+export interface PlayerMemory {
   consecutiveFolds: number;
   consecutiveLosses: number;
   lastBadBeat: number | null;
@@ -114,6 +114,40 @@ export function resetPlayerMemories(): void {
   playerMemory.clear();
 }
 
+// ===================== Competition Memory Snapshot =====================
+// These let a competition pause/save its in-memory state to localStorage
+// and restore it on resume (the singletons above are otherwise lost on reload).
+
+export interface MemorySnapshot {
+  tableChats: ChatMessage[];
+  chatHistories: [number, { role: string; content: string }[]][];
+  playerMemory: [number, PlayerMemory][];
+  lastHandNumber: number;
+}
+
+export function exportMemorySnapshot(): MemorySnapshot {
+  return {
+    tableChats: tableChats.slice(),
+    chatHistories: Array.from(chatHistories.entries()),
+    playerMemory: Array.from(playerMemory.entries()),
+    lastHandNumber,
+  };
+}
+
+export function importMemorySnapshot(snapshot: MemorySnapshot): void {
+  tableChats.length = 0;
+  tableChats.push(...snapshot.tableChats);
+  chatHistories.clear();
+  for (const [k, v] of snapshot.chatHistories) {
+    chatHistories.set(k, v);
+  }
+  playerMemory.clear();
+  for (const [k, v] of snapshot.playerMemory) {
+    playerMemory.set(k, v);
+  }
+  lastHandNumber = snapshot.lastHandNumber;
+}
+
 export type LLMStrategy = 'pro' | 'human';
 
 export interface LLMConfig {
@@ -122,6 +156,9 @@ export interface LLMConfig {
   model: string;
   enabled: boolean;
   strategy: LLMStrategy;
+  // Starting chip stack for P&L-based mood. Defaults to 5000 (trainer) when unset;
+  // competitions set this so emotion thresholds scale with their chosen stack.
+  startingChips?: number;
 }
 
 const LLM_CONFIG_KEY = 'poker-llm-config';
@@ -220,8 +257,7 @@ function buildMessages(playerId: number, systemPrompt: string, userPrompt: strin
   return messages;
 }
 
-function buildEmotionContext(playerChips: number, handNumber: number, playerId: number): string {
-  const startingChips = 5000;
+function buildEmotionContext(playerChips: number, handNumber: number, playerId: number, startingChips: number): string {
   const profit = playerChips - startingChips;
   const profitStr = profit > 0 ? `+${profit}` : `${profit}`;
 
@@ -333,10 +369,35 @@ ${emotionContext}
 - 千万不要说"准备好迎接挑战""让我们看看"这种AI味的话`
 }
 
+function buildCustomSystemPrompt(
+  playerName: string,
+  customText: string,
+  minRaise: number,
+  maxRaise: number,
+  emotionContext: string,
+): string {
+  return `${customText}
+
+${emotionContext}
+
+你必须返回严格的JSON格式(不要用markdown代码块):
+{"action": "fold"|"check"|"call"|"raise", "amount": 数字(仅raise时需要), "thought": "你的思考过程", "chat": "你说的1-2句话"}
+
+格式规则:
+- action只能是: fold, check, call, raise
+- raise时amount必须 ≥ ${minRaise} 且 ≤ ${maxRaise}
+- 如果可以check，不要fold
+
+聊天规则(chat字段):
+- 大部分时候chat为空字符串""
+- 想说话时说1-2句短话`;
+}
+
 export async function makeLLMDecision(
   state: GameState,
   playerIndex: number,
   config: LLMConfig,
+  customSystemPrompt?: string,
 ): Promise<AIDecision> {
   console.log('🤖 makeLLMDecision called for player', playerIndex, 'enabled:', config.enabled);
   // Reset chat history when a new hand starts
@@ -373,7 +434,7 @@ export async function makeLLMDecision(
   const normalMax = Math.min(potSizedMax, player.currentBet + player.chips * 0.8, fullStack);
   const maxRaise = fullStack;
   if (maxRaise >= minRaise && player.chips > 0) {
-    if (config.strategy === 'human') {
+    if (config.strategy === 'human' || customSystemPrompt) {
       actions.push(`raise (min: ${minRaise}, 最大: ${maxRaise})`);
     } else {
       actions.push(`raise (min: ${minRaise}, 建议: ${normalMax}, 最大: ${maxRaise})`);
@@ -416,8 +477,11 @@ export async function makeLLMDecision(
 - 对手过牌后，你可以考虑下注来夺取底池`;
 
   let systemPrompt: string;
-  if (config.strategy === 'human') {
-    const emotionContext = buildEmotionContext(player.chips, state.handNumber, player.id);
+  if (customSystemPrompt && customSystemPrompt.trim()) {
+    const emotionContext = buildEmotionContext(player.chips, state.handNumber, player.id, config.startingChips ?? 5000);
+    systemPrompt = buildCustomSystemPrompt(player.name, customSystemPrompt.trim(), minRaise, maxRaise, emotionContext);
+  } else if (config.strategy === 'human') {
+    const emotionContext = buildEmotionContext(player.chips, state.handNumber, player.id, config.startingChips ?? 5000);
     systemPrompt = buildHumanSystemPrompt(player.name, minRaise, maxRaise, emotionContext);
   } else if (proInfo) {
     systemPrompt = `你是真实的德州扑克职业选手"${proInfo.name}"(${proInfo.title})。

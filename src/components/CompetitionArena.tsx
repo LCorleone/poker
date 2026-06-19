@@ -88,7 +88,7 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
       {/* Main: table + leaderboard */}
       <div className="comp-arena-main">
         <div className="comp-arena-table">
-          <PokerTable gameState={gameState} handResult={handResult} showEquity={false} revealCards={revealCards} />
+          <PokerTable gameState={gameState} handResult={handResult} showEquity={revealCards} revealCards={revealCards} />
 
           <div className="comp-controls">
             {isFinished ? (

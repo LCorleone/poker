@@ -69,15 +69,15 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         <div className="player-bet"><span className="tip" data-tip="本轮下注的金额">下注:</span> {player.currentBet}</div>
       )}
       {player.isFolded && <div className="folded-overlay">弃牌</div>}
-      {/* Show evaluated hand name when cards are visible (showdown or reveal toggle) */}
-      {handName && showCards && (
-        <div className="winner-hand">{handName}</div>
-      )}
-      {equity !== undefined && equity > 0 && (
-        <div
-          className={`equity-badge ${equity >= 0.5 ? 'equity-high' : equity >= 0.25 ? 'equity-mid' : 'equity-low'}`}
-        >
-          {(equity * 100).toFixed(1)}%
+      {/* Show evaluated hand name + win probability when cards are visible */}
+      {((handName && showCards) || (equity !== undefined && equity > 0)) && (
+        <div className="hand-info-row">
+          {handName && showCards && <span className="winner-hand">{handName}</span>}
+          {equity !== undefined && equity > 0 && (
+            <span className={`equity-badge ${equity >= 0.5 ? 'equity-high' : equity >= 0.25 ? 'equity-mid' : 'equity-low'}`}>
+              {(equity * 100).toFixed(0)}%
+            </span>
+          )}
         </div>
       )}
     </div>

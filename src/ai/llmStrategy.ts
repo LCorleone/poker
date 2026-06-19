@@ -674,14 +674,17 @@ ${buildActionSummary(state)}
     }
 
     // Parse JSON from response (try direct parse first, then extract {...} block)
+    // Some models (e.g. MiniMax-M3) embed chain-of-thought inside <think>...</think>
+    // tags within content; strip those first so they don't confuse JSON extraction.
+    const contentForParse = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     let parsed: any;
     try {
       // Strip markdown code fences then parse directly (most reliable)
-      const cleaned = content.replace(/```json\s*|```/g, '').trim();
+      const cleaned = contentForParse.replace(/```json\s*|```/g, '').trim();
       parsed = JSON.parse(cleaned);
     } catch {
       // Fall back to extracting the substring from first { to last }
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const jsonMatch = contentForParse.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         console.error('LLM response not JSON:', content);
         lastError = `Not JSON: ${content.slice(0, 100)}`;

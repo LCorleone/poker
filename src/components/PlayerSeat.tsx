@@ -69,8 +69,8 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
         <div className="player-bet"><span className="tip" data-tip="本轮下注的金额">下注:</span> {player.currentBet}</div>
       )}
       {player.isFolded && <div className="folded-overlay">弃牌</div>}
-      {/* Hide AI thought bubble during play — reveals too much info */}
-      {isWinner && handName && (
+      {/* Show evaluated hand name when cards are visible (showdown or reveal toggle) */}
+      {handName && showCards && (
         <div className="winner-hand">{handName}</div>
       )}
       {equity !== undefined && equity > 0 && (

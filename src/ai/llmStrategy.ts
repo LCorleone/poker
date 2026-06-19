@@ -615,9 +615,9 @@ ${buildActionSummary(state)}
       ? `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
       : `${config.baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
 
-    // 60s timeout (reasoning models can be slow)
+    // 120s timeout (reasoning models can be slow)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
 
     const messages = buildMessages(player.id, systemPrompt, userPrompt);
     const historyCount = (chatHistories.get(player.id) || []).length;

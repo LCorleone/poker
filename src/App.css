@@ -2821,17 +2821,45 @@
   font-size: 0.8rem;
 }
 
+.comp-panel-toggles {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-comp-panel-toggle {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-comp-panel-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-comp-panel-toggle.active {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: rgba(255, 215, 0, 0.5);
+  color: #ffd700;
+}
+
 .comp-arena-main {
   flex: 1;
   display: flex;
-  gap: 16px;
   padding: 16px;
-  align-items: stretch;
+  position: relative;   /* positioning context for the overlay panels */
   min-height: 0;
 }
 
 .comp-arena-table {
   flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2959,6 +2987,34 @@
 .comp-result-text {
   flex: 1;
   min-width: 0;
+}
+
+/* ---------- Overlay side panels (leaderboard / thoughts) ---------- */
+/* These float over the table as overlays instead of being in-flow columns,
+   so the table can fill the full width without being squeezed. */
+.comp-overlay-panel {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  width: 280px;
+  z-index: 50;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* Leaderboard pinned to the right edge. */
+.comp-overlay-panel.comp-leaderboard {
+  right: 16px;
+}
+
+/* Thoughts panel pinned to the right edge by default. When the leaderboard
+   is also open, it shifts left so both sit side by side on the right and
+   neither overlaps the bottom-left chat panel. */
+.comp-overlay-panel.comp-thoughts {
+  right: 16px;
+}
+
+.comp-overlay-panel.comp-thoughts.offset {
+  right: 312px;   /* 280px panel + 16px gap + 16px padding */
 }
 
 /* ---------- Leaderboard ---------- */
@@ -3089,6 +3145,75 @@
   text-align: center;
   padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Thoughts panel (AI reasoning, shown only when cards revealed) ---------- */
+.comp-thoughts {
+  width: 280px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.comp-thoughts-title {
+  font-size: 0.9rem;
+  color: #ffd700;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.comp-thoughts-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.comp-thoughts-entry {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 6px 8px;
+  border-left: 3px solid rgba(255, 215, 0, 0.3);
+}
+
+.comp-thoughts-entry.eliminated {
+  opacity: 0.4;
+}
+
+.comp-thoughts-entry.empty {
+  border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+.comp-thoughts-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.comp-thoughts-out {
+  font-size: 0.65rem;
+  color: #f44336;
+}
+
+.comp-thoughts-folded {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.comp-thoughts-text {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+  word-break: break-word;
 }
 
 /* ---------- Finished overlay ---------- */
@@ -3254,9 +3379,11 @@
     flex-direction: column;
   }
 
-  .comp-leaderboard {
-    width: 100%;
-    max-height: 240px;
+  .comp-overlay-panel {
+    width: 90%;
+    right: 5% !important;
+    left: 5% !important;
+    max-height: 50vh;
   }
 
   .comp-player-card-grid {

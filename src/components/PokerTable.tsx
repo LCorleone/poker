@@ -68,14 +68,6 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
   })();
   const isShowdown = phase === 'showdown';
 
-  // Extract last thought for each AI player
-  const lastThoughts: Record<number, string> = {};
-  for (const record of gameState.actionHistory) {
-    if (record.thought) {
-      lastThoughts[record.playerId] = record.thought;
-    }
-  }
-
   // Extract last action for each player in the CURRENT betting round.
   // (Phase-scoped so a check doesn't linger after the round advances.)
   // Call/raise already show via "下注: X"; fold shows via "弃牌"; only
@@ -146,7 +138,6 @@ const PokerTable: React.FC<PokerTableProps> = ({ gameState, handResult, showEqui
                 isHuman={player.isHuman}
                 isWinner={isWinner}
                 handName={handName}
-                lastThought={lastThoughts[player.id]}
                 lastAction={lastActions[player.id]}
                 equity={showEquity && !player.isFolded && !player.isEliminated ? equityMap.get(player.id) : undefined}
               />

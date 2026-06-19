@@ -18,6 +18,8 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
   const [savedFlash, setSavedFlash] = useState(false);
   const [revealCards, setRevealCards] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showThoughts, setShowThoughts] = useState(false);
 
   const {
     gameState,
@@ -62,6 +64,14 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
 
   const leaderId = sortedEntries[0]?.entry.competitorId ?? null;
 
+  // Latest thought per player (from this hand's action history)
+  const latestThoughts: Record<number, string> = {};
+  for (const record of gameState.actionHistory) {
+    if (record.thought) {
+      latestThoughts[record.playerId] = record.thought;
+    }
+  }
+
   // ---- Finished overlay winner lookup ----
   const winner = winnerId ? competitors.find(c => c.id === winnerId) : null;
   const winnerChips = (() => {
@@ -97,6 +107,24 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
         <span className="comp-hand-info">
           第{gameState.handNumber}手 · 盲注 {blindInfo.small}/{blindInfo.big} · 级别 {blindInfo.level}/{blindInfo.totalLevels}
         </span>
+        <div className="comp-panel-toggles">
+          <button
+            className={`btn-comp-panel-toggle${showLeaderboard ? ' active' : ''}`}
+            onClick={() => setShowLeaderboard(v => !v)}
+            title="显示/隐藏排行榜"
+          >
+            🏆 榜
+          </button>
+          {revealCards && (
+            <button
+              className={`btn-comp-panel-toggle${showThoughts ? ' active' : ''}`}
+              onClick={() => setShowThoughts(v => !v)}
+              title="显示/隐藏思考过程"
+            >
+              🧠 思考
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Main: table + leaderboard */}
@@ -168,8 +196,9 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
           </div>
         </div>
 
-        <aside className="comp-leaderboard">
-          <h3 className="comp-leaderboard-title">🏆 排行榜</h3>
+        {showLeaderboard && (
+          <aside className="comp-leaderboard comp-overlay-panel">
+            <h3 className="comp-leaderboard-title">🏆 排行榜</h3>
           <div className="comp-leaderboard-list">
             {sortedEntries.length === 0 && (
               <div className="comp-leaderboard-empty">暂无数据</div>
@@ -202,7 +231,34 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
           <div className="comp-leaderboard-footer">
             起始筹码 {config.startingChips} · 每级 {config.handsPerLevel} 手
           </div>
-        </aside>
+          </aside>
+        )}
+
+        {revealCards && showThoughts && (
+          <aside className={`comp-thoughts comp-overlay-panel${showLeaderboard ? ' offset' : ''}`}>
+            <h3 className="comp-thoughts-title">🧠 思考过程</h3>
+            <div className="comp-thoughts-list">
+              {gameState.players.map(p => {
+                const thought = latestThoughts[p.id];
+                return (
+                  <div
+                    key={p.id}
+                    className={`comp-thoughts-entry${p.isEliminated ? ' eliminated' : ''}${!thought ? ' empty' : ''}`}
+                  >
+                    <div className="comp-thoughts-name">
+                      {p.name}
+                      {p.isEliminated && <span className="comp-thoughts-out"> 已淘汰</span>}
+                      {p.isFolded && !p.isEliminated && <span className="comp-thoughts-folded"> 弃牌</span>}
+                    </div>
+                    <div className="comp-thoughts-text">
+                      {thought ? `💭 ${thought}` : '（暂无思考）'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Finished overlay */}

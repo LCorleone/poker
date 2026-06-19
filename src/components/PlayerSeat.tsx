@@ -13,7 +13,6 @@ interface PlayerSeatProps {
   isHuman: boolean;
   isWinner: boolean;
   handName?: string;
-  lastThought?: string;
   lastAction?: string;
   equity?: number;
 }
@@ -28,7 +27,6 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
   isHuman,
   isWinner,
   handName,
-  lastThought,
   lastAction,
   equity,
 }) => {
@@ -87,6 +85,6 @@ const PlayerSeat: React.FC<PlayerSeatProps> = ({
       )}
     </div>
   );
-};
+};;
 
 export default PlayerSeat;

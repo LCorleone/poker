@@ -642,7 +642,6 @@ ${buildActionSummary(state)}
       body: JSON.stringify({
         model: config.model,
         messages,
-        temperature: 0.8,
         max_tokens: 4096,
       }),
       signal: controller.signal,

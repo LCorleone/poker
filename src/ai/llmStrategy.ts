@@ -642,7 +642,7 @@ ${buildActionSummary(state)}
       body: JSON.stringify({
         model: config.model,
         messages,
-        max_tokens: 4096,
+        max_tokens: 8192,
       }),
       signal: controller.signal,
     });
@@ -658,25 +658,38 @@ ${buildActionSummary(state)}
 
     const data = await response.json();
     const msg = data.choices?.[0]?.message;
-    // glm reasoning models: content may be empty if reasoning used all tokens
+    // Reasoning models return their chain-of-thought in two different ways:
+    //   - DeepSeek / Kimi / GLM: a separate `reasoning_content` field (content is clean)
+    //   - MiniMax-M3 (and similar): embedded inside `content` as <think>...</think>
+    // Unify both into a single `reasoning` variable and a clean `content` holding
+    // only the answer. Handle a TRUNCATED <think> block (no closing </think>, caused
+    // by hitting max_tokens mid-reasoning) by treating the remainder as reasoning.
     let content = msg?.content?.trim() || '';
-    if (!content && msg?.reasoning_content) {
-      // Extract JSON from reasoning content as fallback
-      const reasoning = msg.reasoning_content;
+    let reasoning = (typeof msg?.reasoning_content === 'string' ? msg.reasoning_content : '').trim();
+
+    // Extract MiniMax-style <think> blocks from content into `reasoning`.
+    const thinkMatch = content.match(/<think>([\s\S]*?)(<\/think>|$)/i);
+    if (thinkMatch) {
+      reasoning = reasoning || thinkMatch[1].trim();
+      content = content.replace(/<think>[\s\S]*?(<\/think>|$)/i, '').trim();
+    }
+
+    // If content is empty but we have reasoning, try to salvage JSON from the
+    // reasoning (some models put the answer inside the think block, or the think
+    // was truncated and never reached the answer — check both).
+    if (!content && reasoning) {
       const jsonInReasoning = reasoning.match(/\{[\s\S]*\}/);
       if (jsonInReasoning) {
         content = jsonInReasoning[0];
       } else {
-        // No JSON found anywhere, construct from reasoning
         content = '';
         lastError = `模型回复为空(推理消耗全部token)，reasoning: ${reasoning.slice(0, 80)}`;
       }
     }
 
-    // Parse JSON from response (try direct parse first, then extract {...} block)
-    // Some models (e.g. MiniMax-M3) embed chain-of-thought inside <think>...</think>
-    // tags within content; strip those first so they don't confuse JSON extraction.
-    const contentForParse = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    // Parse JSON from the (now think-free) content: try direct parse first,
+    // then fall back to extracting the first {...} block.
+    const contentForParse = content;
     let parsed: any;
     try {
       // Strip markdown code fences then parse directly (most reliable)

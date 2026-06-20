@@ -33,21 +33,26 @@ const ChipsChart: React.FC<ChipsChartProps> = ({ history, startingChips, playerN
   const maxHand = history[history.length - 1].handNumber;
 
   // One series per player. Every series begins with a synthetic hand-0 point
-  // at startingChips, so all lines share a common origin. For each finished
-  // hand we append a point only if the player was present in that snapshot —
-  // eliminated players simply stop appearing, so their line ends at their
-  // last hand instead of dragging flat to the end.
+  // at startingChips, so all lines share a common origin. Once a player is
+  // eliminated (flagged in the snapshot) they're out for good — we stop
+  // extending their line so it ends at their elimination hand instead of
+  // dragging flat at 0 across the rest of the game.
   const series: Point[][] = Array.from({ length: playerCount }, () => [
     { hand: 0, chips: startingChips },
   ]);
+  const eliminated: boolean[] = new Array(playerCount).fill(false);
   const lastEliminated: boolean[] = new Array(playerCount).fill(false);
 
   for (const entry of history) {
     for (let pid = 0; pid < playerCount; pid++) {
+      if (eliminated[pid]) continue;   // already out — line stops here
       const p = entry.players.find(pl => pl.playerId === pid);
-      if (!p) continue;                 // not present this hand — line ends naturally
+      if (!p) continue;               // not present this hand (defensive)
       series[pid].push({ hand: entry.handNumber, chips: p.chipsAfter });
-      lastEliminated[pid] = p.isEliminated || p.chipsAfter <= 0;
+      if (p.isEliminated || p.chipsAfter <= 0) {
+        eliminated[pid] = true;
+        lastEliminated[pid] = true;
+      }
     }
   }
 

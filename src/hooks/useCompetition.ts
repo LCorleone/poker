@@ -213,9 +213,17 @@ export function useCompetition() {
     // `updatedPlayers` still holds the hole cards (the next hand clears them),
     // so we snapshot from it. All fields are deep-copied so later hands can't
     // mutate the captured record.
+    // Derive the REAL ending phase. The engine sets gs.phase='showdown' the
+    // moment a hand completes (even a preflop walkover win), so reading
+    // gs.phase directly would always show '搅牌'. The last recorded action's
+    // phase is where the hand actually ended (e.g. 'preflop' when everyone
+    // folded preflop). Fall back to gs.phase if actionHistory is empty.
+    const endingPhase = gs.actionHistory.length > 0
+      ? gs.actionHistory[gs.actionHistory.length - 1].phase
+      : gs.phase;
     const historyEntry: HandHistoryEntry = {
       handNumber: gs.handNumber,
-      phase: gs.phase,
+      phase: endingPhase,
       pot: gs.pot,
       communityCards: gs.communityCards.map(c => ({ suit: c.suit, rank: c.rank })),
       winners: result.winners.map(w => ({

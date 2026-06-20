@@ -404,11 +404,15 @@ export function useCompetition() {
           return;
         }
 
-        // makeLLMDecision returns a fallback on API/parse errors instead of
-        // throwing; getLastError() tells us whether THIS call actually failed.
+        // makeLLMDecision returns a fallback on API/parse/timeout/network errors
+        // instead of throwing. The decision.failed flag is the primary signal —
+        // it's set on every fallback path and false/absent on success. We also
+        // consult getLastError() as a backup to catch any path that set it.
+        // Any failure in a competition is fatal: stop the loop, auto-save, and
+        // surface the model-failure dialog so the user can fix/retry.
         const lastError = getLastError();
-        if (lastError) {
-          handleModelFailure(current, competitor, lastError);
+        if (decision.failed || lastError) {
+          handleModelFailure(current, competitor, lastError || `${competitor.name} 模型调用失败`);
           return;
         }
 

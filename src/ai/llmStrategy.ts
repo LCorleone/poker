@@ -245,6 +245,11 @@ function buildActionSummary(state: GameState): string {
 export interface AIDecision {
   action: GameAction;
   thought: string;
+  // True when this decision is a fallback because the LLM call failed (network
+  // error, timeout, parse failure, non-JSON response, etc.). The trainer treats
+  // fallbacks as "keep playing"; the competition treats ANY failure as fatal
+  // (stop + auto-save + show the model-failure dialog).
+  failed?: boolean;
 }
 
 function buildMessages(playerId: number, systemPrompt: string, userPrompt: string): { role: string; content: string }[] {
@@ -787,15 +792,17 @@ function describeShort(cards: Card[]): string {
   return suited ? '同花' : '杂牌';
 }
 
-// Fallback to simple logic if LLM fails
+// Fallback to simple logic if LLM fails. ALWAYS marks the decision with
+// failed: true so callers (e.g. the competition arena) can treat it as a
+// real failure (stop + auto-save) rather than silently playing on.
 function fallbackDecision(state: GameState, playerIndex: number): AIDecision {
   const player = state.players[playerIndex];
   const toCall = state.currentBet - player.currentBet;
   if (toCall === 0) {
-    return { action: { type: 'check' }, thought: '(网络问题，自动过牌)' };
+    return { action: { type: 'check' }, thought: '(网络问题，自动过牌)', failed: true };
   }
   if (toCall <= state.pot * 0.3) {
-    return { action: { type: 'call' }, thought: '(网络问题，自动跟注)' };
+    return { action: { type: 'call' }, thought: '(网络问题，自动跟注)', failed: true };
   }
-  return { action: { type: 'fold' }, thought: '(网络问题，自动弃牌)' };
+  return { action: { type: 'fold' }, thought: '(网络问题，自动弃牌)', failed: true };
 }

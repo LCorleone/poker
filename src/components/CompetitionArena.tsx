@@ -24,6 +24,9 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
   const [showThoughts, setShowThoughts] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  // Chat panel (bottom-left) is separate from the right-side overlays — it has
+  // its own independent toggle (default open) so the user can hide it.
+  const [showChat, setShowChat] = useState(true);
 
   // The four right-side overlay panels (leaderboard / thoughts / history /
   // chart) are mutually exclusive: opening one closes the others. This keeps
@@ -160,6 +163,13 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
             title="显示/隐藏排行榜"
           >
             🏆 榜
+          </button>
+          <button
+            className={`btn-comp-panel-toggle${showChat ? ' active' : ''}`}
+            onClick={() => setShowChat(v => !v)}
+            title="显示/隐藏牌桌聊天"
+          >
+            💬 聊天
           </button>
           {revealCards && (
             <button
@@ -361,7 +371,9 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
         />
       )}
 
-      <ChatPanel chats={chatMessages} className="chat-panel-left" />
+      {showChat && (
+        <ChatPanel chats={chatMessages} className="chat-panel-left" />
+      )}
     </div>
   );
 };

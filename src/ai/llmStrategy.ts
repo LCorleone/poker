@@ -722,6 +722,7 @@ ${buildActionSummary(state)}
       const amt = Number(parsed.amount);
       if (!Number.isFinite(amt)) {
         // Non-numeric amount: fall back rather than NaN-corrupt the chip stack
+        lastError = `无效加注金额: ${JSON.stringify(parsed.amount).slice(0, 60)}`;
         return fallbackDecision(state, playerIndex);
       }
       const clampedAmount = Math.floor(Math.min(amt, maxRaise));
@@ -730,6 +731,7 @@ ${buildActionSummary(state)}
 
     // Validate action
     if (!['fold', 'check', 'call', 'raise'].includes(action.type)) {
+      lastError = `无效操作: ${JSON.stringify(parsed.action).slice(0, 60)}`;
       return fallbackDecision(state, playerIndex);
     }
     if (action.type === 'check' && !canCheck) {

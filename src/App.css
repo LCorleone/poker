@@ -3216,6 +3216,79 @@
   word-break: break-word;
 }
 
+/* ---------- History panel (📜 历史, shown in the arena overlay) ---------- */
+/* Inherits absolute positioning from .comp-overlay-panel; this block only
+   defines the panel's internal chrome, mirroring .comp-thoughts. */
+.comp-history {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Pin history to the right edge (same default as the other right-edge
+   panels). Exclusivity is enforced in CompetitionArena so only one of
+   leaderboard/thoughts/history is ever open at once — no offset stacking
+   needed. */
+.comp-overlay-panel.comp-history {
+  right: 16px;
+}
+
+.hh-title { font-size: 0.9rem; color: #ffd700; margin-bottom: 8px; flex-shrink: 0; }
+.hh-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+.hh-entry { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 8px; border-left: 3px solid rgba(255,215,0,0.3); }
+.hh-entry-header { font-size: 0.78rem; color: #fff; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+.hh-phase { color: rgba(255,255,255,0.6); }
+.hh-pot { color: #ffd700; }
+.hh-winner { font-size: 0.75rem; color: #4caf50; margin-bottom: 6px; font-weight: 600; }
+.hh-toggle { font-size: 0.72rem; color: rgba(255,215,0,0.8); cursor: pointer; user-select: none; margin-top: 4px; }
+.hh-toggle:hover { color: #ffd700; }
+.hh-details { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); }
+.hh-players { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.hh-player { font-size: 0.7rem; color: rgba(255,255,255,0.85); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hh-player.folded { opacity: 0.5; }
+.hh-player-name { color: #fff; font-weight: 600; }
+.hh-player-cards { color: #fff; font-weight: 600; }
+.hh-player-hand { color: #ffd700; font-size: 0.65rem; }
+.hh-player-chips { color: #ffd700; font-size: 0.65rem; margin-left: auto; }
+.hh-timeline { display: flex; flex-direction: column; gap: 6px; }
+.hh-phase-group { display: flex; flex-direction: column; gap: 3px; }
+.hh-phase-header { font-size: 0.62rem; color: rgba(255,215,0,0.6); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+.hh-action { font-size: 0.68rem; color: rgba(255,255,255,0.7); }
+.hh-action-name { color: #fff; font-weight: 600; margin-right: 4px; }
+.hh-action-thought { font-style: italic; color: rgba(255,255,255,0.5); font-size: 0.62rem; margin-left: 4px; }
+
+/* ---------- Chips-over-time chart (📈 走势 panel) ---------- */
+/* Inherits absolute positioning from .comp-overlay-panel; this block only
+   defines the panel's internal chrome, mirroring .comp-history. */
+.comp-chart {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cc-title { font-size: 0.9rem; color: #ffd700; margin-bottom: 2px; }
+.cc-subtitle { font-size: 0.72rem; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+.cc-svg { width: 100%; height: 260px; display: block; }
+.cc-grid { stroke: rgba(255,255,255,0.08); stroke-width: 1; }
+.cc-axis-label { fill: rgba(255,255,255,0.45); font-size: 10px; }
+.cc-line { fill: none; stroke-width: 2; }
+.cc-dot { stroke-width: 0; }
+.cc-empty { color: rgba(255,255,255,0.4); font-size: 0.8rem; text-align: center; padding: 40px 0; }
+.cc-legend { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.cc-legend-row { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: rgba(255,255,255,0.85); }
+.cc-legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.cc-legend-name { flex: 1; }
+.cc-legend-chips { color: #ffd700; font-weight: 600; }
+.cc-legend-row.eliminated { opacity: 0.45; }
+
 /* ---------- Finished overlay ---------- */
 .comp-finish-overlay {
   position: fixed;

@@ -25,6 +25,7 @@ import {
   Competitor,
   CompetitionSave,
   LeaderboardEntry,
+  HandHistoryEntry,
   listCompetitions,
   saveCompetition,
   deleteCompetition,
@@ -52,6 +53,7 @@ export interface CompetitionHookState {
   replayPlayers: Player[] | null; // snapshot at end of hand
   competitors: Competitor[]; // index-aligned with gameState.players
   leaderboard: LeaderboardEntry[];
+  history: HandHistoryEntry[];
   saveName: string;
   saveId: string | null; // null = unsaved new competition
   config: CompetitionConfig;
@@ -75,6 +77,7 @@ function initialEmptyState(): CompetitionHookState {
     replayPlayers: null,
     competitors: [],
     leaderboard: [],
+    history: [],
     saveName: '',
     saveId: null,
     config: DEFAULT_CONFIG,
@@ -95,6 +98,7 @@ export function useCompetition() {
   const pauseAfterHandRef = useRef(false);
   const competitorsRef = useRef<Competitor[]>([]);
   const leaderboardRef = useRef<LeaderboardEntry[]>([]);
+  const historyRef = useRef<HandHistoryEntry[]>([]);
   const saveIdRef = useRef<string | null>(null);
   const winnerIdRef = useRef<string | null>(null);
   const modelFailureRef = useRef<ModelFailure | null>(null);
@@ -132,6 +136,7 @@ export function useCompetition() {
       gameState: gs,
       memory: exportMemorySnapshot(),
       leaderboard: leaderboardRef.current,
+      history: historyRef.current,
       currentHand: gs.handNumber,
       winnerId: winnerIdRef.current ?? undefined,
       createdAt: Date.now(),
@@ -204,12 +209,56 @@ export function useCompetition() {
     });
     leaderboardRef.current = newLeaderboard;
 
+    // Capture a history entry for this finished hand.
+    // `updatedPlayers` still holds the hole cards (the next hand clears them),
+    // so we snapshot from it. All fields are deep-copied so later hands can't
+    // mutate the captured record.
+    const historyEntry: HandHistoryEntry = {
+      handNumber: gs.handNumber,
+      phase: gs.phase,
+      pot: gs.pot,
+      communityCards: gs.communityCards.map(c => ({ suit: c.suit, rank: c.rank })),
+      winners: result.winners.map(w => ({
+        playerId: w.playerId,
+        amount: w.amount,
+        handName: w.hand.name,
+      })),
+      players: updatedPlayers.map(p => ({
+        playerId: p.id,
+        name: p.name,
+        holeCards: p.holeCards.map(c => ({ suit: c.suit, rank: c.rank })),
+        isFolded: p.isFolded,
+        isEliminated: p.isEliminated,
+        chipsAfter: p.chips,
+        finalHandName:
+          gs.communityCards.length >= 3 && p.holeCards.length === 2
+            ? evaluateHand([...p.holeCards, ...gs.communityCards]).name
+            : undefined,
+      })),
+      actionHistory: gs.actionHistory.map(r => {
+        const pl = updatedPlayers.find(pp => pp.id === r.playerId);
+        return {
+          playerId: r.playerId,
+          playerName: pl?.name ?? `#${r.playerId}`,
+          actionType: r.action.type,
+          amount: r.action.amount,
+          phase: r.phase,
+          thought: r.thought,
+        };
+      }),
+    };
+    const newHistory = [...historyRef.current, historyEntry];
+    // Cap at most recent 50 to bound save size
+    if (newHistory.length > 50) newHistory.splice(0, newHistory.length - 50);
+    historyRef.current = newHistory;
+
     setState(prev => ({
       ...prev,
       gameState: finalState,
       handResult: result,
       replayPlayers: snapshot,
       leaderboard: newLeaderboard,
+      history: newHistory,
     }));
 
     return finalState;
@@ -412,6 +461,7 @@ export function useCompetition() {
       handsPlayed: 0,
     }));
     leaderboardRef.current = leaderboard;
+    historyRef.current = [];
 
     setState({
       gameState: gs,
@@ -419,6 +469,7 @@ export function useCompetition() {
       replayPlayers: null,
       competitors,
       leaderboard,
+      history: [],
       saveName,
       saveId: null,
       config,
@@ -540,6 +591,8 @@ export function useCompetition() {
 
     competitorsRef.current = save.competitors;
     leaderboardRef.current = save.leaderboard;
+    // `?? []` guards older saves persisted before the history field existed.
+    historyRef.current = save.history ?? [];
     saveIdRef.current = save.id;
     winnerIdRef.current = save.winnerId ?? null;
     modelFailureRef.current = null;
@@ -559,6 +612,7 @@ export function useCompetition() {
       replayPlayers: null,
       competitors: save.competitors,
       leaderboard: save.leaderboard,
+      history: save.history ?? [],
       saveName: save.name,
       saveId: save.id,
       config: save.config,
@@ -579,6 +633,7 @@ export function useCompetition() {
     replayPlayers: state.replayPlayers,
     competitors: state.competitors,
     leaderboard: state.leaderboard,
+    history: state.history,
     saveName: state.saveName,
     saveId: state.saveId,
     config: state.config,

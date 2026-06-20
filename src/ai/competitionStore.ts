@@ -21,6 +21,33 @@ export interface LeaderboardEntry {
   handsPlayed: number;
 }
 
+// Snapshot of a single finished hand, captured in finishHand() and shown in
+// the 📜 历史 overlay panel. All card/player data is deep-copied at capture
+// time so later hands (which mutate the live GameState) can't corrupt it.
+// NOTE: the engine's Card type is { suit: Suit; rank: Rank } where Rank is a
+// number (2–14). We snapshot to { suit: string; rank: number } so the entry
+// is plain JSON-serialisable for localStorage and decoupled from the engine
+// enums.
+export interface HandHistoryPlayer {
+  playerId: number;
+  name: string;
+  holeCards: { suit: string; rank: number }[];   // snapshot
+  isFolded: boolean;
+  isEliminated: boolean;
+  chipsAfter: number;
+  finalHandName?: string;                         // evaluated hand name if community cards exist
+}
+
+export interface HandHistoryEntry {
+  handNumber: number;
+  phase: string;                  // 'showdown' or the phase where everyone folded
+  pot: number;
+  communityCards: { suit: string; rank: number }[];
+  winners: { playerId: number; amount: number; handName: string }[];
+  players: HandHistoryPlayer[];
+  actionHistory: { playerId: number; playerName: string; actionType: string; amount?: number; phase: string; thought?: string }[];
+}
+
 export interface CompetitionSave {
   id: string;
   name: string;                 // user-given save name
@@ -33,6 +60,7 @@ export interface CompetitionSave {
   gameState: GameState;
   memory: MemorySnapshot;
   leaderboard: LeaderboardEntry[];
+  history: HandHistoryEntry[];
   currentHand: number;          // = gameState.handNumber, denormalized for the save list display
   winnerId?: string;            // set when status === 'finished'
   createdAt: number;

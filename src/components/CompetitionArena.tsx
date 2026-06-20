@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import PokerTable from './PokerTable';
 import ModelFailDialog from './ModelFailDialog';
 import ChatPanel from './ChatPanel';
+import HandHistoryPanel from './HandHistoryPanel';
+import ChipsChart from './ChipsChart';
 import { ChatMessage, getTableChats } from '../ai/llmStrategy';
 import { useCompetition } from '../hooks/useCompetition';
 
@@ -20,6 +22,36 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showThoughts, setShowThoughts] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showChart, setShowChart] = useState(false);
+
+  // The four right-side overlay panels (leaderboard / thoughts / history /
+  // chart) are mutually exclusive: opening one closes the others. This keeps
+  // the narrow right-edge area clean and avoids stacking math.
+  const toggleLeaderboard = () => {
+    setShowLeaderboard(v => {
+      if (!v) { setShowThoughts(false); setShowHistory(false); setShowChart(false); }
+      return !v;
+    });
+  };
+  const toggleThoughts = () => {
+    setShowThoughts(v => {
+      if (!v) { setShowLeaderboard(false); setShowHistory(false); setShowChart(false); }
+      return !v;
+    });
+  };
+  const toggleHistory = () => {
+    setShowHistory(v => {
+      if (!v) { setShowLeaderboard(false); setShowThoughts(false); setShowChart(false); }
+      return !v;
+    });
+  };
+  const toggleChart = () => {
+    setShowChart(v => {
+      if (!v) { setShowLeaderboard(false); setShowThoughts(false); setShowHistory(false); }
+      return !v;
+    });
+  };
 
   const {
     gameState,
@@ -109,8 +141,22 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
         </span>
         <div className="comp-panel-toggles">
           <button
+            className={`btn-comp-panel-toggle${showHistory ? ' active' : ''}`}
+            onClick={toggleHistory}
+            title="显示/隐藏历史记录"
+          >
+            📜 历史
+          </button>
+          <button
+            className={`btn-comp-panel-toggle${showChart ? ' active' : ''}`}
+            onClick={toggleChart}
+            title="显示/隐藏筹码走势"
+          >
+            📈 走势
+          </button>
+          <button
             className={`btn-comp-panel-toggle${showLeaderboard ? ' active' : ''}`}
-            onClick={() => setShowLeaderboard(v => !v)}
+            onClick={toggleLeaderboard}
             title="显示/隐藏排行榜"
           >
             🏆 榜
@@ -118,7 +164,7 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
           {revealCards && (
             <button
               className={`btn-comp-panel-toggle${showThoughts ? ' active' : ''}`}
-              onClick={() => setShowThoughts(v => !v)}
+              onClick={toggleThoughts}
               title="显示/隐藏思考过程"
             >
               🧠 思考
@@ -257,6 +303,22 @@ const CompetitionArena: React.FC<CompetitionArenaProps> = ({ competition, onExit
                 );
               })}
             </div>
+          </aside>
+        )}
+
+        {showHistory && (
+          <aside className="comp-history comp-overlay-panel">
+            <HandHistoryPanel history={competition.history} />
+          </aside>
+        )}
+
+        {showChart && (
+          <aside className="comp-chart comp-overlay-panel">
+            <ChipsChart
+              history={competition.history}
+              startingChips={config.startingChips}
+              playerNames={competitors.map(c => c.name)}
+            />
           </aside>
         )}
       </div>
